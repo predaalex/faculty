@@ -1,0 +1,43 @@
+.inputSearch {
+    float: right;
+}
+.buttonSearch {
+    float: right;
+}
+
+/* Container holding the image and the text */
+.container {
+position: relative;
+text-align: center;
+color: white;
+}
+
+/* Bottom left text */
+.bottom {
+    position: absolute;
+    bottom: 20px;
+    left: 100px;
+    color: black;
+    font-size: 40px;
+}
+.footer {
+    position: fixed;
+    width: 100%;
+    bottom: 0px;
+}
+body{
+    background-color: cyan;
+}
+.categs {
+    position: absolute;
+    bottom: 100px;
+    left: 100px;
+}
+
+.flex-container {
+display: flex;
+}
+
+.flex-container > div {
+margin: 10px;
+}
