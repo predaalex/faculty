@@ -2,6 +2,8 @@ from parameters import *
 import numpy as np
 import pdb
 import timeit
+import cv2 as cv
+
 
 
 def get_mean_color_small_images(params: Parameters):
@@ -33,15 +35,38 @@ def add_pieces_grid(params: Parameters):
 
     elif params.criterion == 'distantaCuloareMedie':
         mean_color_pieces = get_mean_color_small_images(params)
+        indexes = []
         for i in range(params.num_pieces_vertical):
+            lineIndexes = []
             for j in range(params.num_pieces_horizontal):
                 patch = params.image_resized[i * H: (i + 1) * H, j * W:(j + 1) * W, :].copy()
                 mean_color_patch = np.mean(patch, axis=(0,1))
                 sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
-                index = sorted_indices[0]
-                img_mosaic[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+                dif = 0
+                index = sorted_indices[dif]
 
-        # print('Building mosaic %.2f%%' % (100 * (i * params.num_pieces_horizontal + j) / num_pieces))
+                if j > 0:
+                    if lineIndexes[j - 1] == index:
+                        dif += 1
+                        index = sorted_indices[dif]
+                if i > 0:
+                    if indexes[i - 1][j] == index:
+                        dif += 1
+                        index = sorted_indices[dif]
+                if i > 0 and j > 0:
+                    if indexes[i - 1][j - 1] == index:
+                        dif += 1
+                        index = sorted_indices[dif]
+
+                lineIndexes.append(index)
+                img_mosaic[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+            indexes.append(lineIndexes)
+
+        print(indexes[1][2])
+
+        print('Building mosaic %.2f%%' % (100 * (i * params.num_pieces_horizontal + j) / num_pieces))
+
+        # TODO: de implementat completarea mozaicului prin alegerea aleatorie a pozitiei unde sa fie plasate patchurile
     else:
         print('Error! unknown option %s' % params.criterion)
         exit(-1)

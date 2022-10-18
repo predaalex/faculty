@@ -16,7 +16,7 @@ params.small_images_dir = './../data/colectie/'
 params.image_type = 'png'
 # numarul de piese ale mozaicului pe orizontala
 # pe verticala vor fi calcultate dinamic a.i sa se pastreze raportul
-params.num_pieces_horizontal = 300
+params.num_pieces_horizontal = 150
 # afiseaza piesele de mozaic dupa citirea lor
 params.show_small_images = False
 # modul de aranjarea a pieselor mozaicului
@@ -28,7 +28,7 @@ params.criterion = 'distantaCuloareMedie'
 # daca params.layout == 'caroiaj', sa se foloseasca piese hexagonale
 params.hexagon = False
 img_mosaic = build_mosaic(params)
-img_mosaic=cv.resize(img_mosaic,(1000,657))
+img_mosaic=cv.resize(img_mosaic, (1000, 657))
 cv.imshow('image', img_mosaic)
 cv.waitKey(0)
 cv.imwrite('test.png', img_mosaic)

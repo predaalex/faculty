@@ -47,8 +47,7 @@ def compute_dimensions(params: Parameters):
     # obtine si imaginea de referinta redimensionata avand aceleasi dimensiuni
     # ca mozaicul
 
-    # completati codul
-    # TODO: sterge
+
     hs, ws, _ = params.small_images[0].shape
     h, w, _ = params.image.shape
     params.num_pieces_vertical = np.int32(np.round((h * params.num_pieces_horizontal * ws) / (w * hs)))
