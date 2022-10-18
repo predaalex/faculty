@@ -5,7 +5,6 @@ import timeit
 import cv2 as cv
 
 
-
 def get_mean_color_small_images(params: Parameters):
     N, H, W, C = params.small_images.shape
 
@@ -17,6 +16,15 @@ def get_mean_color_small_images(params: Parameters):
             mean_color_pieces[i, cc] = np.float32(img[:, :, cc].mean())
 
     return mean_color_pieces
+
+
+def not_filled(indexes):
+    for i in range(len(indexes)):
+        for j in range(len(indexes[i])):
+            if indexes[i][j][0] == -1:
+                print(i, j)
+                return True
+    return False
 
 
 def add_pieces_grid(params: Parameters):
@@ -40,7 +48,7 @@ def add_pieces_grid(params: Parameters):
             lineIndexes = []
             for j in range(params.num_pieces_horizontal):
                 patch = params.image_resized[i * H: (i + 1) * H, j * W:(j + 1) * W, :].copy()
-                mean_color_patch = np.mean(patch, axis=(0,1))
+                mean_color_patch = np.mean(patch, axis=(0, 1))
                 sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
                 dif = 0
                 index = sorted_indices[dif]
@@ -62,11 +70,76 @@ def add_pieces_grid(params: Parameters):
                 img_mosaic[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
             indexes.append(lineIndexes)
 
-        print(indexes[1][2])
-
-        print('Building mosaic %.2f%%' % (100 * (i * params.num_pieces_horizontal + j) / num_pieces))
+        # print('Building mosaic %.2f%%' % (100 * (i * params.num_pieces_horizontal + j) / num_pieces))
 
         # TODO: de implementat completarea mozaicului prin alegerea aleatorie a pozitiei unde sa fie plasate patchurile
+
+    elif params.criterion == 'randomPatching':
+        mean_color_pieces = get_mean_color_small_images(params)
+        indexes = np.array([[[-1 for i in range(3)] for j in range(w)] for k in range(h)])
+
+        # bordare stanga
+        for i in range(params.num_pieces_vertical):
+            j = 0
+            patch = params.image_resized[i * H: (i + 1) * H, j * W:(j + 1) * W, :].copy()
+            mean_color_patch = np.mean(patch, axis=(0, 1))
+            sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
+            index = sorted_indices[0]
+            img_mosaic[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+            indexes[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+        # bordare dreapta
+        for i in range(params.num_pieces_vertical):
+            j = params.num_pieces_horizontal - 1
+            patch = params.image_resized[i * H: (i + 1) * H, j * W:(j + 1) * W, :].copy()
+            mean_color_patch = np.mean(patch, axis=(0, 1))
+            sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
+            index = sorted_indices[0]
+            img_mosaic[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+            indexes[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+        # bordare sus
+        i = 0
+        for j in range(params.num_pieces_horizontal):
+            patch = params.image_resized[i * H: (i + 1) * H, j * W:(j + 1) * W, :].copy()
+            mean_color_patch = np.mean(patch, axis=(0, 1))
+            sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
+            index = sorted_indices[0]
+            img_mosaic[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+            indexes[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+        i = params.num_pieces_vertical - 1
+        for j in range(params.num_pieces_horizontal):
+            patch = params.image_resized[i * H: (i + 1) * H, j * W:(j + 1) * W, :].copy()
+            mean_color_patch = np.mean(patch, axis=(0, 1))
+            sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
+            index = sorted_indices[0]
+            img_mosaic[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+            indexes[i * H: (i + 1) * H, j * W:(j + 1) * W, :] = params.small_images[index].copy()
+        print(h)
+        nrRandoms = 10000
+        xIndex = np.random.randint(low=0, high=h - H + 1, size=nrRandoms)
+        yIndex = np.random.randint(low=0, high=w - W + 1, size=nrRandoms)
+
+        for i in range(nrRandoms):
+            patch = params.image_resized[xIndex[i]:xIndex[i] + H, yIndex[i]:yIndex[i] + W, :].copy()
+            mean_color_patch = np.mean(patch, axis=(0, 1))
+            sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
+            indexPiece = sorted_indices[0]
+            img_mosaic[xIndex[i]:xIndex[i] + H, yIndex[i]:yIndex[i] + W, :] = params.small_images[indexPiece].copy()
+            img_mosaic[xIndex[i]:xIndex[i] + H, yIndex[i]:yIndex[i] + W, :] = params.small_images[indexPiece].copy()
+        print(not_filled(indexes))
+        # while not_filled(indexes):
+        #     xIndex = np.random.randint(low=0, high=h - H + 1, size=1)[0]
+        #     yIndex = np.random.randint(low=0, high=w - W + 1, size=1)[0]
+        #
+        #     patch = params.image_resized[xIndex:xIndex + H, yIndex:yIndex + W, :].copy()
+        #     mean_color_patch = np.mean(patch, axis=(0, 1))
+        #
+        #     sorted_indices = get_sorted_indices(mean_color_pieces, mean_color_patch)
+        #
+        #     indexPiece = sorted_indices[0]
+        #
+        #     indexes[xIndex:xIndex + H, yIndex:yIndex + W, :] = params.small_images[indexPiece].copy()
+        #     img_mosaic[xIndex:xIndex + H, yIndex:yIndex + W, :] = params.small_images[indexPiece].copy()
+
     else:
         print('Error! unknown option %s' % params.criterion)
         exit(-1)
@@ -76,10 +149,12 @@ def add_pieces_grid(params: Parameters):
 
     return img_mosaic
 
+
 def get_sorted_indices(mean_color_pieces, mean_color_image):
     dist = np.sum((mean_color_pieces - mean_color_image) ** 2, axis=1)
 
     return np.argsort(dist)
+
 
 def add_pieces_random(params: Parameters):
     start_time = timeit.default_timer()
