@@ -52,6 +52,7 @@ plt.show()
 t = np.linspace(0, 1, 1600)
 frecventa = 400
 
+
 def a(t):
     return np.sin(2 * t * frecventa + 0)
 
@@ -64,6 +65,7 @@ plt.show()
 t = np.linspace(0, 3, 2400)
 frecventa = 800
 
+
 def b(t):
     return np.sin(2 * t * frecventa + 0)
 
@@ -72,15 +74,23 @@ plt.title("2 b")
 plt.plot(t, b(t), color='red')
 plt.show()
 
+
 # 2 c
 frecventa = 240
-# t = np.linspace(0, 1, 1000)
+def sawtooth(t, frecventa):
+    return frecventa * t - np.floor(frecventa * t)
+t = np.linspace(0, 1, 1000)
 plt.title("2 c")
-plt.plot(t, signal.sawtooth(2 * pi * frecventa * t + 0))
+plt.plot(t, sawtooth(t, frecventa))
 plt.show()
 
+
 # 2 d
+
 frecventa = 300
+def square(t, frecventa):
+    return 2 * np.floor(frecventa * t) - np.floor(2 * frecventa * t)
+
 t = np.linspace(0, 1, 50)
 plt.title("2 d")
 plt.plot(t, signal.square(2 * pi * frecventa * t + 0))
