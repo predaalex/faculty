@@ -23,6 +23,20 @@ def z(t):
     return np.cos(120 * pi * t + pi / 3)
 
 
+###1 A
+t1 = np.arange(0, 0.03, 0.0005)
+
+###1 B
+fix, axs = plt.subplots(3)
+fix.suptitle("exercitiul 1")
+
+axs[0].plot(t1, x(t1), color="red")
+axs[1].plot(t1, y(t1), color="blue")
+axs[2].plot(t1, z(t1), color="green")
+
+plt.show()
+
+###1 C
 t = np.linspace(0, 0.03, 6)
 
 fix, axs = plt.subplots(3)
@@ -35,11 +49,11 @@ axs[2].plot(t, z(t), color="green")
 plt.show()
 
 # 2 a
-t = np.linspace(0, 4, 1600)
-
+t = np.linspace(0, 1, 1600)
+frecventa = 400
 
 def a(t):
-    return np.sin(4 * t)
+    return np.sin(2 * t * frecventa + 0)
 
 
 plt.title("2 a")
@@ -48,10 +62,10 @@ plt.show()
 
 # 2 b
 t = np.linspace(0, 3, 2400)
-
+frecventa = 800
 
 def b(t):
-    return np.sin(4 * t)
+    return np.sin(2 * t * frecventa + 0)
 
 
 plt.title("2 b")
@@ -59,15 +73,17 @@ plt.plot(t, b(t), color='red')
 plt.show()
 
 # 2 c
-t = np.linspace(0, 1, 240)
+frecventa = 240
+# t = np.linspace(0, 1, 1000)
 plt.title("2 c")
-plt.plot(t, signal.sawtooth(2 * pi * 5 * t))
+plt.plot(t, signal.sawtooth(2 * pi * frecventa * t + 0))
 plt.show()
-q
+
 # 2 d
-t = np.linspace(0, 1, 300)
+frecventa = 300
+t = np.linspace(0, 1, 50)
 plt.title("2 d")
-plt.plot(t, signal.square(2 * pi * 5 * t))
+plt.plot(t, signal.square(2 * pi * frecventa * t + 0))
 plt.show()
 
 # 3 e
