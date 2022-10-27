@@ -14,7 +14,7 @@ class Parameters:
         self.image = np.float32(self.image)
         self.resize_option = 'micsoreazaLatime'
         self.num_pixels_width = 50
-        self.num_pixel_height = 50
+        self.num_pixels_height = 50
         self.show_path = False
         self.color_path = (0, 0, 255)
         self.method_select_path = 'greedy'

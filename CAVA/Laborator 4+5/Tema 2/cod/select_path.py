@@ -23,9 +23,43 @@ def select_random_path(E):
 
     return path
 
+
 def select_dynamic_programming_path(E):
-    #TODO: scrieti codul
-    return None
+    M = np.zeros(E.shape)
+    M[0, :] = E[0, :]
+    for i in range(1, M.shape[0]):
+        for j in range(M.shape[1]):
+            if j == 0:
+                M[i, j] = E[i, j] + min(M[i - 1, j], M[i - 1, j + 1])
+            elif j == M.shape[1] - 1:
+                M[i, j] = E[i, j] + min(M[i - 1, j - 1], M[i - 1, j])
+            else:
+                M[i, j] = E[i, j] + min(M[i - 1, j - 1], M[i - 1, j], M[i - 1, j + 1])
+
+    line = M.shape[0] - 1
+    col = np.argmin(M[line, :])
+
+    path = [0 for i in range(line + 1)]
+    path[line] = (line, col)
+    for line in range(M.shape[0] - 2, -1, -1):
+        if col == 0:
+            if M[line, 0] > M[line, 1]:
+                new_col = 1
+            else:
+                new_col = 0
+        elif col == E.shape[1] - 1:
+            if M[line, col] > M[line, col -1]:
+                new_col = col - 1
+            else:
+                new_col = col
+        else:
+            neigh = np.array([M[line, col - 1], M[line, col], M[line, col + 1]])
+            new_col = col + np.argmin(neigh) - 1
+
+        path[line] = (line, new_col)
+        col = new_col
+
+    return path
 
 
 def select_path(E, method):

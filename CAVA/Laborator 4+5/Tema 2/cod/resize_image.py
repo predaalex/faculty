@@ -8,6 +8,7 @@ from select_path import *
 
 import pdb
 
+
 def compute_energy(img):
     """
     calculeaza energia la fiecare pixel pe baza gradientului
@@ -16,12 +17,19 @@ def compute_energy(img):
     """
     # urmati urmatorii pasi:
     # 1. transformati imagine in grayscale
+    img_gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     # 2. folositi filtru sobel pentru a calcula gradientul in directia X si Y
+    grad_x = cv.Sobel(img_gray, ddepth=cv.CV_16S, dx=1, dy=0, borderType=cv.BORDER_CONSTANT)
+    grad_y = cv.Sobel(img_gray, ddepth=cv.CV_16S, dx=0, dy=1, borderType=cv.BORDER_CONSTANT)
     # 3. calculati magnitudinea pentru fiecare pixel al imaginii
-    E = np.zeros((img.shape[0],img.shape[1]))
-    #TODO: scrieti codul
+    E = np.zeros((img.shape[0], img.shape[1]))
+
+    abs_x = np.abs(grad_x)
+    abs_y = np.abs(grad_y)
+    E = abs_x + abs_y
 
     return E
+
 
 def show_path(img, path, color):
     new_image = img.copy()
@@ -30,9 +38,9 @@ def show_path(img, path, color):
 
     E = compute_energy(img)
     new_image_E = img.copy()
-    new_image_E[:,:,0] = E.copy()
-    new_image_E[:,:,1] = E.copy()
-    new_image_E[:,:,2] = E.copy()
+    new_image_E[:, :, 0] = E.copy()
+    new_image_E[:, :, 1] = E.copy()
+    new_image_E[:, :, 2] = E.copy()
 
     for row, col in path:
         new_image_E[row, col] = color
@@ -50,13 +58,18 @@ def delete_path(img, path):
     """
     updated_img = np.zeros((img.shape[0], img.shape[1] - 1, img.shape[2]), np.uint8)
 
-        
+    for i in range(img.shape[0]):
+        col = path[i][1]
+        updated_img[i, :col] = img[i, :col].copy()
+        updated_img[i, col:] = img[i, col + 1:].copy()
+
     return updated_img
 
+
 def decrease_width(params: Parameters, num_pixels):
-    img = params.image.copy() # copiaza imaginea originala
+    img = params.image.copy()  # copiaza imaginea originala
     for i in range(num_pixels):
-        print('Eliminam drumul vertical numarul %i dintr-un total de %d.' % (i+1, num_pixels))
+        print('Eliminam drumul vertical numarul %i dintr-un total de %d.' % (i + 1, num_pixels))
 
         # calculeaza energia dupa ecuatia (1) din articol
         E = compute_energy(img)
@@ -68,31 +81,40 @@ def decrease_width(params: Parameters, num_pixels):
     cv.destroyAllWindows()
     return img
 
+
 def decrease_height(params: Parameters, num_pixels):
-	#TODO: scrieti codul
-    return None
+    # TODO: scrieti codul
+
+    params.image = np.rot90(params.image, k=3)
+    resized_image_rot = decrease_width(params, params.num_pixels_height)
+    params.image = np.rot90(params.image, k=1)
+    resized_image = np.rot90(resized_image_rot, k=1)
+
+    return resized_image
+
 
 def delete_object(params: Parameters, x0, y0, w, h):
-    #TODO: scrieti codul
+    # TODO: scrieti codul
     return None
 
-def resize_image(params: Parameters):
 
+def resize_image(params: Parameters):
     if params.resize_option == 'micsoreazaLatime':
         # redimensioneaza imaginea pe latime
         resized_image = decrease_width(params, params.num_pixels_width)
         return resized_image
 
     elif params.resize_option == 'micsoreazaInaltime':
-        #TODO: scrieti codul    
-        return None
-    
+        # TODO: scrieti codul
+        resized_image = decrease_height(params, params.num_pixels_height)
+        return resized_image
+
     elif params.resize_option == 'amplificaContinut':
-        #TODO: scrieti codul
+        # TODO: scrieti codul
         return None
 
     elif params.resize_option == 'eliminaObiect':
-        #TODO: scrieti codul
+        # TODO: scrieti codul
         return None
 
 

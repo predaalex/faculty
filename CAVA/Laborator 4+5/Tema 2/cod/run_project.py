@@ -7,6 +7,8 @@
 
 from parameters import *
 from resize_image import *
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 image_name = '../data/castel.jpg'
@@ -14,16 +16,16 @@ params = Parameters(image_name)
 
 # seteaza optiunea de redimenionare
 # micsoreazaLatime, micsoreazaInaltime, amplificaContinut, eliminaObiect
-params.resize_option = 'micsoreazaLatime'
+params.resize_option = 'micsoreazaInaltime'
 # numarul de pixeli pe latime
-params.num_pixels_width = 50
+params.num_pixels_width = 150
 # numarul de pixeli pe inaltime
-params.num_pixel_height = 50
+params.num_pixels_height = 50
 # afiseaza drumul eliminat
 params.show_path = True
 # metoda pentru alegerea drumului
 # aleator, greedy, programareDinamica
-params.method_select_path = 'aleator'
+params.method_select_path = 'programareDinamica'
 
 resized_image = resize_image(params)
 resized_image_opencv = cv.resize(params.image, (resized_image.shape[1], resized_image.shape[0]))
