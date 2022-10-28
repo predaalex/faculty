@@ -1,29 +1,45 @@
 package main
 
 import (
-    "bufio"
-    "fmt"
-    "net/http"
+	"bufio"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"time"
 )
 
 func main() {
-	resp, err := http.Get("http://localhost:8090/headers")
-
+	f, err := os.Open("fisier.txt")
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
-	defer resp.Body.Close()
+	defer f.Close()
 
-	fmt.Println("Response status:", resp.Status)
+	reader := bufio.NewReader(f)
 
-	scanner := bufio.NewScanner(resp.Body)
-	// scanner.Scan()
-	// fmt.Println(scanner.Text())
-    for i := 0; scanner.Scan() && i < 2; i++ {
-        fmt.Println(scanner.Text())
-    }
+	name, err1 := reader.ReadString('\n')
+	request, err2 := reader.ReadString('\n')
 
-    if err := scanner.Err(); err != nil {
-        panic(err)
-    }
+	if err1 != nil || err2 != nil {
+		log.Fatalf("read file line error: %v | %v", err1, err2)
+	}
+
+	serverConnection, _ := net.Dial("tcp", "127.0.0.1:45600")
+
+	fmt.Print("Numele cu care te conectezi la server este: " + name)
+	fmt.Fprintf(serverConnection, name)
+
+	
+	fmt.Print("Requestul trimis este: " + request)
+	fmt.Fprintf(serverConnection, request)
+
+	cititorServer, _ := bufio.NewReader(serverConnection).ReadString('.')
+
+	for start := time.Now(); time.Now().Sub(start) < time.Second; {
+	}
+
+	fmt.Println(cititorServer)
+
+
 }
