@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	f, err := os.Open("fisier.txt")
+	f, err := os.Open("fisier3.txt")
 	if err != nil {
 		fmt.Println(err)
 	}
