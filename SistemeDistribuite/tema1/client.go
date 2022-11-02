@@ -10,7 +10,14 @@ import (
 )
 
 func main() {
-	f, err := os.Open("fisier3.txt")
+	args := os.Args
+
+	var path string
+	path += "fisier"
+	path += args[1]
+	path += ".txt"
+
+	f, err := os.Open(path)
 	if err != nil {
 		fmt.Println(err)
 	}

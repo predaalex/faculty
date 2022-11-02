@@ -16,9 +16,9 @@ params = Parameters(image_name)
 
 # seteaza optiunea de redimenionare
 # micsoreazaLatime, micsoreazaInaltime, amplificaContinut, eliminaObiect
-params.resize_option = 'micsoreazaInaltime'
+params.resize_option = 'micsoreazaLatime'
 # numarul de pixeli pe latime
-params.num_pixels_width = 150
+params.num_pixels_width = 25
 # numarul de pixeli pe inaltime
 params.num_pixels_height = 50
 # afiseaza drumul eliminat
