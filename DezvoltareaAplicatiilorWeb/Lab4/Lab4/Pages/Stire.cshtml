@@ -1,0 +1,16 @@
+﻿@page "{stireId:int}"
+@using Lab4.Models
+@model Lab4.Pages.StireModel
+@{
+
+}
+
+<div class="text-center">
+    <h1 class="dissplay-4"> Welcome </h1>
+    <h2>@Model.Stire.Titlu</h2>
+    <h3>@Model.Stire.Lead</h3>
+    <p>Adaugat de @Model.Stire.Autor la data de @Model.Stire.Data.ToString("dd MMMM yy") in categoria @Model.Stire.Categorie.Nume</p>
+    <a asp-page="\Index"> Home </a>
+    <br/>
+
+</div>

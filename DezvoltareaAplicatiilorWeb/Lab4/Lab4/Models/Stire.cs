@@ -9,6 +9,7 @@
         public string Continut { get; set; }
         public string Autor { get; set; }
         public int IdCategorie { get; set; }
+        public DateTime Data { get; set; }
         public Categorie Categorie { get; set; }
     }
 

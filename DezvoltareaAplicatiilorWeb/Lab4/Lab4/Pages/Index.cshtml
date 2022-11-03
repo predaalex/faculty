@@ -10,10 +10,9 @@
     <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
     @foreach (Stire stire in Model.Stiri)
     {
-        <p>@stire.Titlu</p>
-        <p>@stire.Lead</p>
-        <p>@stire.Categorie.Nume</p>
-
+        <h2> <a asp-page="\Stire" asp-route-stireId="@stire.Id"> @stire.Titlu </a></h2>
+        <h3>@stire.Lead</h3>
+        <p>Adaugat de @stire.Autor la data de @stire.Data.ToString("dd MMMM yy") in categoria @stire.Categorie.Nume</p>
         <br />
     }
 </div>
