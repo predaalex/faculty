@@ -25,8 +25,8 @@ params.num_pixels_height = 50
 params.show_path = True
 # metoda pentru alegerea drumului
 # aleator, greedy, programareDinamica
-params.method_select_path = 'programareDinamica'
-
+params.method_select_path = 'eliminaObiect'
+params.factor_amplification = 1.2
 resized_image = resize_image(params)
 resized_image_opencv = cv.resize(params.image, (resized_image.shape[1], resized_image.shape[0]))
 
