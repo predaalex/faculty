@@ -1,3 +1,4 @@
+// programul se ruleaza cu go run ./server
 package main
 
 import (

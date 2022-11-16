@@ -1,3 +1,5 @@
+// programul se ruleaza cu go run ./client 3
+// args la rulare reprezinta problema care doreste sa se rezolve
 package main
 
 import (

@@ -1,0 +1,36 @@
+﻿@page
+@using Lab4.Models
+@model Lab4.Pages.AdaugareStireModel
+@{
+
+}
+
+<div class="text-center">
+    <h1 class="dissplay-4">Introduceti datele stirii pe care vreti sa o adaugati</h1>
+    
+    <form method="post">
+        <label>Titlu:</label><br>
+        <input asp-for="Stire.Titlu" value="Numele stirii" /><br><br>
+
+        <label>Lead:</label><br>
+        <input asp-for="Stire.Lead" value="Leadul Stirii"><br><br>
+
+        <label>Continut:</label><br>
+        <input asp-for="Stire.Continut" value="Continutul Stirii"><br><br>
+
+
+        <label>Autor:</label><br>
+        <input asp-for="Stire.Autor" value="Autorul Stirii"><br><br>
+
+        <label>IdCategorie:</label><br>
+        <input asp-for="Stire.IdCategorie" value="Id ul stirii"><br><br>
+
+        <label>Data:</label><br>
+        <input asp-for="Stire.Data" value="Data Stirii"><br><br>
+
+        <p>Titlu : @Model.Stire.Titlu</p>
+
+
+        <input type="submit" value="Submit">
+    </form>
+</div>
