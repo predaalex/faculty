@@ -67,15 +67,15 @@ def compare_annotations(filename_predicted,filename_gt,verbose=0):
 	return points_positions, points_letters,points_score
 
 #change this on your machine pointing to your results (txt files)
-predictions_path_root = "/Users/bogdan/Dropbox/CAVA-scrabble/CAVA-2022-TEMA1/evaluare/fisiere_solutie/331_Alexe_Bogdan/"
+predictions_path_root = "C:/Users/allex/Desktop/git_repos/faculty/CAVA/tema1/txtbuilder/"
 
 #change this on your machine to point to the ground-truth test
-gt_path_root = "/Users/bogdan/Dropbox/CAVA-scrabble/CAVA-2022-TEMA1/antrenare/"
+gt_path_root = "C:/Users/allex/Desktop/git_repos/faculty/CAVA/tema1/antrenare/"
 
 
 #change this to 1 if you want to print results at each turn
-verbose = 1
-total_points = 0
+verbose = 0
+total_points = 1
 for game in range(1,6):
 	for turn in range(1,21):
 		
