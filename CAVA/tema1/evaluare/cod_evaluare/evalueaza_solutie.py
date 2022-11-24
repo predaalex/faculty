@@ -67,10 +67,10 @@ def compare_annotations(filename_predicted,filename_gt,verbose=0):
 	return points_positions, points_letters,points_score
 
 #change this on your machine pointing to your results (txt files)
-predictions_path_root = "C:/Users/allex/Desktop/git_repos/faculty/CAVA/tema1/txtbuilder/"
+predictions_path_root = "../../txtbuilder/"
 
 #change this on your machine to point to the ground-truth test
-gt_path_root = "C:/Users/allex/Desktop/git_repos/faculty/CAVA/tema1/antrenare/"
+gt_path_root = "../../antrenare/"
 
 
 #change this to 1 if you want to print results at each turn
