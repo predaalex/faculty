@@ -1,0 +1,25 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <form method="post">
+        <label>Titlu: </label>
+        <input type="text"  placeholder="titlu stire" name="searchText"> 
+        <input type="submit" value="Submit" />
+        <br>
+    </form>
+@foreach(Models.Stire stire in Model.Stiri)
+{
+    <div class="stire">
+        <h1><a asp-page="/Stire" asp-route-StireId="@stire.Id">@stire.Titlu</a></h1>
+        <p>@stire.Lead</p>
+        <p>Adaugat de @stire.Autor la data @stire.Data, in categoria @stire.Categorie.Nume</p>
+        <p>Pentru a edita o stire: <a asp-page="\EditeazaStire" asp-route-StireId="@stire.Id">editeaza </a></p>
+        <p>Pentru a sterge o stire: <a asp-page="\StergeStire" asp-route-StireId="@stire.Id">sterge </a></p>
+    </div>
+}
+    <p>Pentru a adauga o stire: <a asp-page="\AdaugareStire">adauga </a></p>
+</div>

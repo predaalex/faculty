@@ -1,0 +1,35 @@
+﻿@page "{StireId:int}"
+@using Lab4.Models
+@model Lab5.Pages.EditeazaStireModel
+@{
+}
+<div>
+    <h1>Editati datele pentru stire</h1>
+
+    <form method="post">
+        <input asp-for="stire.Id" type="hidden" /> <br></br>
+
+        <label>Titlu: </label>
+        <input asp-for="stire.Titlu" /> <br></br>
+
+        <label>Lead: </label>
+        <input asp-for="stire.Lead" /><br></br>
+
+        <label>Autor: </label>
+        <input asp-for="stire.Autor" /><br></br>
+
+        <label>Continut: </label>
+        <input asp-for="stire.Continut" /><br></br>
+
+        <label>Categorie: </label>
+        <select asp-for="stire.CategorieId" asp-items="Model.categorii">
+        </select>
+        <br></br>
+        <label>Data: </label>
+        <input asp-for="stire.Data" /><br></br>
+
+        <input type="submit" value="Submit" />
+
+    </form>
+
+</div>

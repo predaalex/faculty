@@ -1,0 +1,13 @@
+﻿@page "{StireId:int}"
+@model Lab5.Pages.StergeStireModel
+@{
+}
+
+<div>
+    <form method="post">
+        <label>Esti sigur ca vrei sa stergi stirea?</label>
+        <br>
+        <input type="submit" value="Submit" />
+        <label><a asp-page="\Index">Cancel </a></label>
+    </form>
+</div>
