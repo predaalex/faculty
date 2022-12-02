@@ -1,0 +1,38 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+}
+
+@model SiteCuMVC.Models.Stire
+
+<div>
+    <h1>Editati stirea</h1>
+
+    <form method="post" asp-action="EditeazaStire" >
+        <input asp-for="@Model.Id" type="hidden" /> <br></br>
+
+        <label>Titlu: </label>
+        <input asp-for="@Model.Titlu" /> <br></br>
+
+        <label>Lead: </label>
+        <input asp-for="@Model.Lead" /><br></br>
+
+        <label>Autor: </label>
+        <input asp-for="@Model.Autor" /><br></br>
+
+        <label>Continut: </label>
+        <input asp-for="@Model.Continut" /><br></br>
+
+        <label>Categorie: </label>
+        <select asp-for="@Model.CategorieId" asp-items="@ViewBag.categorii">
+            
+        </select>
+        <br></br>
+        <label>Data: </label>
+        <input asp-for="@Model.Data" /><br></br>
+
+        <input type="submit" value="Submit" />
+
+    </form>
+</div>
