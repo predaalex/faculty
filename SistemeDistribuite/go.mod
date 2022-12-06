@@ -2,6 +2,8 @@ module LAB6
 
 go 1.19
 
+require github.com/chrislusf/glow v0.0.0-20181102060906-4c40a2717eee
+
 require (
 	fyne.io/fyne/v2 v2.2.4 // indirect
 	fyne.io/systray v1.10.1-0.20220621085403-9a2652634e93 // indirect
@@ -18,6 +20,7 @@ require (
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/jsummers/gobmp v0.0.0-20151104160322-e2ba15ffa76e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/psilva261/timsort v1.0.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20200311192757-870daf9aa564 // indirect
 	github.com/srwiley/rasterx v0.0.0-20200120212402-85cb7272f5e9 // indirect
 	github.com/stretchr/testify v1.7.2 // indirect
