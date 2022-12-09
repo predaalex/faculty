@@ -58,13 +58,13 @@ def play_song(song):
 
 
 noteCantec = [
-    ('FA#4', 2), ('MI4', 2),
-    ('RE4', 2), ('DO#4', 2),
-    ('SI3', 2), ('LA3', 2),
-    ('SI3', 2), ('DO#4', 2),
-    ('FA#4', 2), ('MI4', 2),
-    ('RE4', 2), ('DO#4', 2),
-    ('SI3', 2), ('LA3', 2)
+    ['FA#4', 1], ['MI4', 1],
+    ['RE4', 2], ['DO#4', 2],
+    ['SI3', 2], ['LA3', 2],
+    ['SI3', 2], ['DO#4', 2],
+    ['FA#4', 2], ['MI4', 2],
+    ['RE4', 2], ['DO#4', 2],
+    ['SI3', 2], ['LA3', 2]
 ]
 
 
@@ -77,5 +77,5 @@ for pair in x:
     elements = pair.split(" ")
     noteCraciun.append([elements[0], float(elements[1])])
 # print(noteCraciun)
-
-play_song(generate_song(noteCraciun))
+# print(noteCantec)
+play_song(generate_song(noteCantec))
