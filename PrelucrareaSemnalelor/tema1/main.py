@@ -56,8 +56,17 @@ def play_song(song):
     sounddevice.play(wav_wave, blocking=True)
     sounddevice.stop()
 
+
 noteCantec = [
+    ('FA#4', 2), ('MI4', 2),
+    ('RE4', 2), ('DO#4', 2),
+    ('SI3', 2), ('LA3', 2),
+    ('SI3', 2), ('DO#4', 2),
+    ('FA#4', 2), ('MI4', 2),
+    ('RE4', 2), ('DO#4', 2),
+    ('SI3', 2), ('LA3', 2)
 ]
+
 
 noteCraciun = []
 f = open("note_muzicale.txt")
