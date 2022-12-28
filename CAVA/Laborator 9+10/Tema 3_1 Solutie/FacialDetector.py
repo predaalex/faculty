@@ -32,12 +32,17 @@ class FacialDetector:
         for i in range(num_images):
             print('Procesam exemplul pozitiv numarul %d...' % i)
             img = cv.imread(files[i], cv.IMREAD_GRAYSCALE)
+            # TODO: completati codul functiei in continuare
             features = hog(img, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                            cells_per_block=(2, 2), feature_vector=True)
+            print(len(features))
+
             positive_descriptors.append(features)
-            if self.params.use_flip_images == True:
-                features = hog(np.fliplr(img), pixels_per_cell=(self.params.dim_hog_cell,self.params.dim_hog_cell), cells_per_block=(2, 2), feature_vector=True)
+            if self.params.use_flip_images:
+                features = hog(np.fliplr(img), pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
+                               cells_per_block=(2, 2), feature_vector=True)
                 positive_descriptors.append(features)
+
 
         positive_descriptors = np.array(positive_descriptors)
         return positive_descriptors
@@ -60,18 +65,17 @@ class FacialDetector:
         for i in range(num_images):
             print('Procesam exemplul negativ numarul %d...' % i)
             img = cv.imread(files[i], cv.IMREAD_GRAYSCALE)
+            # TODO: completati codul functiei in continuare
             num_rows = img.shape[0]
-            num_col = img.shape[1]
+            num_cols = img.shape[1]
+            x = np.random.randint(low=0, high=num_cols - self.params.dim_window, size=num_negative_per_image)
+            y = np.random.randint(low=0, high=num_rows - self.params.dim_window, size=num_negative_per_image)
 
-            x = np.random.randint(low=0, high=num_col-self.params.dim_window, size=num_negative_per_image)
-            y = np.random.randint(low=0, high=num_rows-self.params.dim_window, size=num_negative_per_image)
-
-            for idx in range(len(x)):
-                patch = img[y[idx]:y[idx] + self.params.dim_window, x[idx]:x[idx] + self.params.dim_window]
-                features = hog(patch, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
-                               cells_per_block=(2, 2), feature_vector=True)
-
-                negative_descriptors.append(features)
+            for idx in range(len(y)):
+                patch = img[y[idx]: y[idx] + self.params.dim_window, x[idx]: x[idx] + self.params.dim_window]
+                descr = hog(patch, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
+                            cells_per_block=(2, 2), feature_vector=False)
+                negative_descriptors.append(descr.flatten())
 
         negative_descriptors = np.array(negative_descriptors)
         return negative_descriptors
