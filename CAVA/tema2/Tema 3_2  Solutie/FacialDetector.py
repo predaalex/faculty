@@ -249,7 +249,7 @@ class FacialDetector:
         # xmin, ymin, xmax, ymax
         x_out_of_bounds = np.where(image_detections[:, 2] > image_size[1])[0]
         y_out_of_bounds = np.where(image_detections[:, 3] > image_size[0])[0]
-        print(x_out_of_bounds, y_out_of_bounds)
+        # print(x_out_of_bounds, y_out_of_bounds)
         image_detections[x_out_of_bounds, 2] = image_size[1]
         image_detections[y_out_of_bounds, 3] = image_size[0]
         sorted_indices = np.flipud(np.argsort(image_scores))
@@ -307,23 +307,27 @@ class FacialDetector:
             # TODO: completati codul functiei in continuare
             image_scores = []
             image_detections = []
-            hog_descriptors = hog(img, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
-                                  cells_per_block=(2, 2), feature_vector=False)
-            num_cols = img.shape[1] // self.params.dim_hog_cell - 1
-            num_rows = img.shape[0] // self.params.dim_hog_cell - 1
-            num_cell_in_template = self.params.dim_window // self.params.dim_hog_cell - 1
+            for j in range(10, 26, 15):
+                img = cv.resize(img, (0, 0), fx=j / 10, fy=j / 10)
+                hog_descriptors = hog(img, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
+                                      cells_per_block=(2, 2), feature_vector=False)
+                num_cols = img.shape[1] // self.params.dim_hog_cell - 1
+                num_rows = img.shape[0] // self.params.dim_hog_cell - 1
+                num_cell_in_template = self.params.dim_window // self.params.dim_hog_cell - 1
 
-            for y in range(0, num_rows - num_cell_in_template):
-                for x in range(0, num_cols - num_cell_in_template):
-                    descr = hog_descriptors[y:y + num_cell_in_template, x:x + num_cell_in_template].flatten()
-                    score = np.dot(descr, w)[0] + bias
-                    if score > self.params.threshold:
-                        x_min = int(x * self.params.dim_hog_cell)
-                        y_min = int(y * self.params.dim_hog_cell)
-                        x_max = int(x * self.params.dim_hog_cell + self.params.dim_window)
-                        y_max = int(y * self.params.dim_hog_cell + self.params.dim_window)
-                        image_detections.append([x_min, y_min, x_max, y_max])
-                        image_scores.append(score)
+                for y in range(0, num_rows - num_cell_in_template):
+                    for x in range(0, num_cols - num_cell_in_template):
+                        descr = hog_descriptors[y:y + num_cell_in_template, x:x + num_cell_in_template].flatten()
+                        score = np.dot(descr, w)[0] + bias
+                        if score > self.params.threshold:
+                            x_min = int((x / (j / 10)) * self.params.dim_hog_cell)
+                            y_min = int((y / (j / 10)) * self.params.dim_hog_cell)
+                            x_max = int((x / (j / 10)) * self.params.dim_hog_cell + self.params.dim_window / (j / 10))
+                            y_max = int((y / (j / 10)) * self.params.dim_hog_cell + self.params.dim_window / (j / 10))
+                            image_detections.append([x_min, y_min, x_max, y_max])
+                            image_scores.append(score)
+                            # print(image_detections)
+                            # print(image_scores)
             if len(image_scores) > 0:
                 image_detections, image_scores = self.non_maximal_suppression(np.array(image_detections),
                                                                               np.array(image_scores), img.shape)
