@@ -11,6 +11,7 @@ from copy import deepcopy
 import timeit
 from skimage.feature import hog
 import time
+import random
 
 
 def line_info(line):
@@ -29,24 +30,25 @@ class FacialDetector:
         self.params = params
         self.best_model = None
 
-    def get_descriptors_of_image(self, nume_imagine_anterioara, faces_of_image, path):
+    def get_descriptors_of_image1(self, nume_imagine_anterioara, faces_of_image, path):
         img = cv.imread(path + nume_imagine_anterioara, cv.IMREAD_GRAYSCALE)
         pos_descriptors = []
         neg_descriptors = []
         # print(nume_imagine_anterioara)
         # print(faces_of_image)
-        for y in range(0, img.shape[0] - self.params.dim_window, self.params.crop_distance):
-            for x in range(0, img.shape[1] - self.params.dim_window, self.params.crop_distance):
+        for y in range(0, img.shape[0] - self.params.dim_window_y, self.params.crop_distance):
+            for x in range(0, img.shape[1] - self.params.dim_window_x, self.params.crop_distance):
                 max_iou = 0
                 for face_box in faces_of_image:
 
                     iou = self.intersection_over_union(face_box,
-                                                   (x, y, x + self.params.dim_window, y + self.params.dim_window))
+                                                       (x, y, x + self.params.dim_window_x,
+                                                        y + self.params.dim_window_y))
                     # print(iou)
                     if iou > max_iou:
                         max_iou = iou
 
-                crop_img = img[y:y + self.params.dim_window, x:x + self.params.dim_window]
+                crop_img = img[y:y + self.params.dim_window_y, x:x + self.params.dim_window_x]
 
                 features = hog(crop_img,
                                pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
@@ -75,10 +77,8 @@ class FacialDetector:
         pos_conter = len(pos_descriptors)
         neg_counter = len(neg_descriptors)
 
-        import random
-
         random_numbers = set()
-        while len(random_numbers) < pos_conter * 2:
+        while len(random_numbers) < pos_conter:
             random_numbers.add(random.randint(0, neg_counter - 1))
 
         random_numbers = list(random_numbers)
@@ -89,6 +89,67 @@ class FacialDetector:
         for i in random_numbers:
             aux.append(neg_descriptors[i])
         neg_descriptors = aux
+
+        return pos_descriptors, neg_descriptors
+
+    def get_descriptors_of_image2(self, nume_imagine_anterioara, faces_of_image, path):
+        img = cv.imread(path + nume_imagine_anterioara, cv.IMREAD_GRAYSCALE)
+        pos_descriptors = []
+        neg_descriptors = []
+
+        ### creez cate un feature pentru fiecare poza redimensionata pentru descriptorii pozitivi
+        for face_box in faces_of_image:
+            x1, y1, x2, y2 = face_box[0], face_box[1], face_box[2], face_box[3]
+            crop_img = img[y1:y2, x1:x2]
+            crop_img = cv.resize(crop_img, (self.params.dim_window_x, self.params.dim_window_y))
+            # cv.imshow("crop", crop_img)
+            # cv.waitKey(0)
+            # cv.destroyAllWindows()
+
+            features = hog(crop_img,
+                           pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
+                           cells_per_block=(2, 2),
+                           # visualize=True,
+                           feature_vector=True)
+
+            # cv.imshow("imghog", img_hog)
+            # cv.imshow("original", crop_img)
+            # cv.waitKey(0)
+            # cv.destroyAllWindows()
+            pos_descriptors.append(features)
+
+        pos_counter = len(pos_descriptors)
+
+        ### iau random din aceeasi imagine, acelasi numar de descriptori negativi
+        while len(neg_descriptors) < pos_counter:
+            y, x = random.randint(0, img.shape[0] - self.params.dim_window_y - 1), \
+                random.randint(0, img.shape[1] - self.params.dim_window_x - 1)
+
+            max_iou = 0
+            for face_box in faces_of_image:
+
+                iou = self.intersection_over_union(face_box,
+                                                   (x, y, x + self.params.dim_window_x, y + self.params.dim_window_y))
+                # print(iou)
+                if iou > max_iou:
+                    max_iou = iou
+
+            if max_iou > 1:
+                continue
+            crop_img = img[y:y + self.params.dim_window_y, x:x + self.params.dim_window_x]
+            # print(f"shape = {crop_img.shape}")
+            # crop_img = cv.resize(crop_img, (self.params.dim_window_x, self.params.dim_window_y))
+            # print(f"shape = {crop_img.shape}")
+
+            # cv.imshow("crop", crop_img)
+            # cv.waitKey(0)
+            # cv.destroyAllWindows()
+            features = hog(crop_img,
+                           pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
+                           cells_per_block=(2, 2),
+                           # visualize=True,
+                           feature_vector=True)
+            neg_descriptors.append(features)
 
         return pos_descriptors, neg_descriptors
 
@@ -107,22 +168,21 @@ class FacialDetector:
             path = "../resources/antrenare/" + nume_personaj + "/"
             f = open("../resources/antrenare/" + nume_personaj + "_annotations.txt")
             lines = f.readlines()
-            # lines = lines[:360]
             nume_imagine_anterioara = lines[0].split(" ")[0]
             faces_of_image = []
             time_start = time.time()
-            lines = lines
             lines.append("end0 1 2 3 4 end5\n")
             for line in lines:
                 nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
+                # if nume_personaj == "louie":
                 if nume_imagine != nume_imagine_anterioara:
 
-                    positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image(
+                    positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image2(
                         nume_imagine_anterioara, faces_of_image, path)
                     positive_descriptors.extend(positive_descriptors_of_image)
 
-                    # if len(negative_descriptors) < 40000:
                     negative_descriptors.extend(negative_descriptors_of_image)
+                    print(f"setul de date al lui{nume_personaj}")
 
                     print(f"time for img{nume_imagine_anterioara} -> {time.time() - time_start}")
                     time_start = time.time()
@@ -130,7 +190,7 @@ class FacialDetector:
                     nume_imagine_anterioara = nume_imagine
                     faces_of_image = [[xmin, ymin, xmax, ymax]]
                 else:
-                    faces_of_image.append((xmin, ymin, xmax, ymax))
+                    faces_of_image.append([xmin, ymin, xmax, ymax])
 
             print(nume_personaj)
             print(f"imagini pozitive = {len(positive_descriptors)}")
@@ -141,6 +201,10 @@ class FacialDetector:
 
         positive_descriptors = np.array(positive_descriptors)
         negative_descriptors = np.array(negative_descriptors)
+
+        print(f"shape pos = {positive_descriptors.shape}")
+        print(f"shape neg = {negative_descriptors.shape}")
+
 
         return positive_descriptors, negative_descriptors
 
@@ -165,11 +229,11 @@ class FacialDetector:
             # TODO: completati codul functiei in continuare
             num_rows = img.shape[0]
             num_cols = img.shape[1]
-            x = np.random.randint(low=0, high=num_cols - self.params.dim_window, size=num_negative_per_image)
-            y = np.random.randint(low=0, high=num_rows - self.params.dim_window, size=num_negative_per_image)
+            x = np.random.randint(low=0, high=num_cols - self.params.dim_window_x, size=num_negative_per_image)
+            y = np.random.randint(low=0, high=num_rows - self.params.dim_window_y, size=num_negative_per_image)
 
             for idx in range(len(y)):
-                patch = img[y[idx]: y[idx] + self.params.dim_window, x[idx]: x[idx] + self.params.dim_window]
+                patch = img[y[idx]: y[idx] + self.params.dim_window_y, x[idx]: x[idx] + self.params.dim_window_x]
                 descr = hog(patch, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                             cells_per_block=(2, 2), feature_vector=False)
                 negative_descriptors.append(descr.flatten())
@@ -261,8 +325,8 @@ class FacialDetector:
         for i in range(len(sorted_image_detections) - 1):
             if is_maximal[i] == True:  # don't change to 'is True' because is a numpy True and is not a python True :)
                 for j in range(i + 1, len(sorted_image_detections)):
-                    if is_maximal[
-                        j] == True:  # don't change to 'is True' because is a numpy True and is not a python True :)
+                    if is_maximal[j] == True:
+                        # don't change to 'is True' because is a numpy True and is not a python True :)
                         if self.intersection_over_union(sorted_image_detections[i],
                                                         sorted_image_detections[j]) > iou_threshold:
                             is_maximal[j] = False
@@ -303,34 +367,61 @@ class FacialDetector:
         for i in range(num_test_images):
             start_time = timeit.default_timer()
             print('Procesam imaginea de testare %d/%d..' % (i, num_test_images))
-            img = cv.imread(test_files[i], cv.IMREAD_GRAYSCALE)
+            img_originala = cv.imread(test_files[i], cv.IMREAD_GRAYSCALE)
             # TODO: completati codul functiei in continuare
             image_scores = []
             image_detections = []
-            for j in range(10, 26, 15):
-                img = cv.resize(img, (0, 0), fx=j / 10, fy=j / 10)
+            for j in range(10, 40, 20):
+                img = cv.resize(img_originala, (0, 0), fx=j / 10, fy=j / 10)
                 hog_descriptors = hog(img, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                                       cells_per_block=(2, 2), feature_vector=False)
                 num_cols = img.shape[1] // self.params.dim_hog_cell - 1
                 num_rows = img.shape[0] // self.params.dim_hog_cell - 1
-                num_cell_in_template = self.params.dim_window // self.params.dim_hog_cell - 1
+                num_cell_in_template_x = self.params.dim_window_x // self.params.dim_hog_cell - 1
+                num_cell_in_template_y = self.params.dim_window_y // self.params.dim_hog_cell - 1
 
-                for y in range(0, num_rows - num_cell_in_template):
-                    for x in range(0, num_cols - num_cell_in_template):
-                        descr = hog_descriptors[y:y + num_cell_in_template, x:x + num_cell_in_template].flatten()
+                for y in range(0, num_rows - num_cell_in_template_y):
+                    for x in range(0, num_cols - num_cell_in_template_x):
+                        descr = hog_descriptors[y:y + num_cell_in_template_y, x:x + num_cell_in_template_x].flatten()
                         score = np.dot(descr, w)[0] + bias
                         if score > self.params.threshold:
                             x_min = int((x / (j / 10)) * self.params.dim_hog_cell)
                             y_min = int((y / (j / 10)) * self.params.dim_hog_cell)
-                            x_max = int((x / (j / 10)) * self.params.dim_hog_cell + self.params.dim_window / (j / 10))
-                            y_max = int((y / (j / 10)) * self.params.dim_hog_cell + self.params.dim_window / (j / 10))
+                            x_max = int((x / (j / 10)) * self.params.dim_hog_cell + self.params.dim_window_x / (j / 10))
+                            y_max = int((y / (j / 10)) * self.params.dim_hog_cell + self.params.dim_window_y / (j / 10))
                             image_detections.append([x_min, y_min, x_max, y_max])
                             image_scores.append(score)
                             # print(image_detections)
                             # print(image_scores)
+            for j in range(90, 60, -20):
+                img = cv.resize(img_originala, (0, 0), fx=j / 100, fy=j / 100)
+                hog_descriptors = hog(img, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
+                                      cells_per_block=(2, 2), feature_vector=False)
+                num_cols = img.shape[1] // self.params.dim_hog_cell - 1
+                num_rows = img.shape[0] // self.params.dim_hog_cell - 1
+                num_cell_in_template_x = self.params.dim_window_x // self.params.dim_hog_cell - 1
+                num_cell_in_template_y = self.params.dim_window_y // self.params.dim_hog_cell - 1
+
+                for y in range(0, num_rows - num_cell_in_template_y):
+                    for x in range(0, num_cols - num_cell_in_template_x):
+                        descr = hog_descriptors[y:y + num_cell_in_template_y, x:x + num_cell_in_template_x].flatten()
+                        score = np.dot(descr, w)[0] + bias
+                        if score > self.params.threshold:
+                            x_min = int((x / (j / 100)) * self.params.dim_hog_cell)
+                            y_min = int((y / (j / 100)) * self.params.dim_hog_cell)
+                            x_max = int(
+                                (x / (j / 100)) * self.params.dim_hog_cell + self.params.dim_window_x / (j / 100))
+                            y_max = int(
+                                (y / (j / 100)) * self.params.dim_hog_cell + self.params.dim_window_y / (j / 100))
+                            image_detections.append([x_min, y_min, x_max, y_max])
+                            image_scores.append(score)
+                            # print(image_detections)
+                            # print(image_scores)
+
             if len(image_scores) > 0:
                 image_detections, image_scores = self.non_maximal_suppression(np.array(image_detections),
-                                                                              np.array(image_scores), img.shape)
+                                                                              np.array(image_scores),
+                                                                              img_originala.shape)
             if len(image_scores) > 0:
                 if detections is None:
                     detections = image_detections

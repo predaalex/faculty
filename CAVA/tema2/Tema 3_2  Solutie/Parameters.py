@@ -17,13 +17,15 @@ class Parameters:
             print('directory {} exists '.format(self.dir_save_files))
 
         # set the parameters
-        self.dim_window = 120  # exemplele pozitive
-        self.dim_hog_cell = 6  # dimensiunea celulei
+        # self.dim_window = 120
+        self.dim_window_x = 120
+        self.dim_window_y = 105
+        self.dim_hog_cell = 8  # dimensiunea celulei
+        self.crop_distance = 60
+        self.threshold = 5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
         self.dim_descriptor_cell = 36  # dimensiunea descriptorului unei celule
         self.overlap = 0.3
         self.number_positive_examples = 0  # numarul exemplelor pozitive
         self.number_negative_examples = 0  # numarul exemplelor negative
         self.overlap = 0.3
-        self.has_annotations = False
-        self.threshold = 1  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
-        self.crop_distance = 20
+        self.has_annotations = True
