@@ -34,8 +34,6 @@ class FacialDetector:
         img = cv.imread(path + nume_imagine_anterioara, cv.IMREAD_GRAYSCALE)
         pos_descriptors = []
         neg_descriptors = []
-        # print(nume_imagine_anterioara)
-        # print(faces_of_image)
         for y in range(0, img.shape[0] - self.params.dim_window_y, self.params.crop_distance):
             for x in range(0, img.shape[1] - self.params.dim_window_x, self.params.crop_distance):
                 max_iou = 0
@@ -44,56 +42,59 @@ class FacialDetector:
                     iou = self.intersection_over_union(face_box,
                                                        (x, y, x + self.params.dim_window_x,
                                                         y + self.params.dim_window_y))
-                    # print(iou)
                     if iou > max_iou:
                         max_iou = iou
 
+                if max_iou < 0.75:
+                    continue
+
                 crop_img = img[y:y + self.params.dim_window_y, x:x + self.params.dim_window_x]
+                # cv.imshow("test", crop_img)
+                # cv.waitKey(0)
+                # cv.destroyAllWindows()
 
                 features = hog(crop_img,
                                pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                                cells_per_block=(2, 2),
                                # visualize=True,
                                feature_vector=True)
-                # flip_features  = hog(np.fliplr(crop_img),
-                #                      pixels_per_cell=(dim_hog_cell, dim_hog_cell),
+                # flip_features = hog(np.fliplr(crop_img),
+                #                      pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                 #                      cells_per_block=(2, 2),
+                #                      visualize=True,
                 #                      feature_vector=True)
-                # print(len(features))
-                if max_iou > 0.5:
-                    # cv.imshow("imghog", img_hog)
-                    # cv.imshow("original", crop_img)
-                    # cv.waitKey(0)
-                    # cv.destroyAllWindows()
-                    pos_descriptors.append(features)
-                    # pos_descriptors.append(flip_features)
-                else:
-                    # cv.imshow("original", crop_img)
-                    # cv.waitKey(0)
-                    # cv.destroyAllWindows()
-                    neg_descriptors.append(features)
-                    # neg_descriptors.append(flip_features)
-        # extrag random acelasi numar de descriptori negativi cu numarul de descriptori pozitivi dintr-o imagine
-        pos_conter = len(pos_descriptors)
-        neg_counter = len(neg_descriptors)
+                pos_descriptors.append(features)
+                # pos_descriptors.append(flip_features)
 
-        random_numbers = set()
-        while len(random_numbers) < pos_conter:
-            random_numbers.add(random.randint(0, neg_counter - 1))
+        ### iau random din aceeasi imagine, acelasi numar de descriptori negativi
+        while len(neg_descriptors) < len(pos_descriptors):
+            y, x = random.randint(0, img.shape[0] - self.params.dim_window_y - 1), \
+                random.randint(0, img.shape[1] - self.params.dim_window_x - 1)
 
-        random_numbers = list(random_numbers)
+            max_iou = 0
+            for face_box in faces_of_image:
 
-        # print(len(neg_descriptors))
-        # print(len(pos_descriptors))
-        aux = []
-        for i in random_numbers:
-            aux.append(neg_descriptors[i])
-        neg_descriptors = aux
+                iou = self.intersection_over_union(face_box,
+                                                   (x, y, x + self.params.dim_window_x,
+                                                    y + self.params.dim_window_y))
+                # print(iou)
+                if iou > max_iou:
+                    max_iou = iou
+
+            if max_iou > 1:
+                continue
+            crop_img = img[y:y + self.params.dim_window_y, x:x + self.params.dim_window_x]
+            features = hog(crop_img,
+                           pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
+                           cells_per_block=(2, 2),
+                           # visualize=True,
+                           feature_vector=True)
+            neg_descriptors.append(features)
 
         return pos_descriptors, neg_descriptors
 
-    def get_descriptors_of_image2(self, nume_imagine_anterioara, faces_of_image, path):
-        img = cv.imread(path + nume_imagine_anterioara, cv.IMREAD_GRAYSCALE)
+    def get_descriptors_of_image2(self, nume_imagine, faces_of_image, path):
+        img = cv.imread(path + nume_imagine, cv.IMREAD_GRAYSCALE)
         pos_descriptors = []
         neg_descriptors = []
 
@@ -137,13 +138,6 @@ class FacialDetector:
             if max_iou > 1:
                 continue
             crop_img = img[y:y + self.params.dim_window_y, x:x + self.params.dim_window_x]
-            # print(f"shape = {crop_img.shape}")
-            # crop_img = cv.resize(crop_img, (self.params.dim_window_x, self.params.dim_window_y))
-            # print(f"shape = {crop_img.shape}")
-
-            # cv.imshow("crop", crop_img)
-            # cv.waitKey(0)
-            # cv.destroyAllWindows()
             features = hog(crop_img,
                            pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                            cells_per_block=(2, 2),
@@ -163,7 +157,8 @@ class FacialDetector:
         positive_descriptors = []
         negative_descriptors = []
         nume_personaje = ["andy", "louie", "ora", "tommy"]
-        # nume_personaje = ["louie"]
+        nume_personaje = ["ora", "andy"]
+        # nume_personaje = ["louie", "tommy"]
         for nume_personaj in nume_personaje:
             path = "../resources/antrenare/" + nume_personaj + "/"
             f = open("../resources/antrenare/" + nume_personaj + "_annotations.txt")
@@ -171,26 +166,46 @@ class FacialDetector:
             nume_imagine_anterioara = lines[0].split(" ")[0]
             faces_of_image = []
             time_start = time.time()
-            lines.append("end0 1 2 3 4 end5\n")
+            lines.append(f"end0 1 2 3 4 {nume_personaj}5\n")
             for line in lines:
                 nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
-                # if nume_personaj == "louie":
-                if nume_imagine != nume_imagine_anterioara:
+                if nume_personaj == "ora":
+                    if nume_imagine != nume_imagine_anterioara:
 
-                    positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image2(
-                        nume_imagine_anterioara, faces_of_image, path)
-                    positive_descriptors.extend(positive_descriptors_of_image)
+                        positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image1(
+                            nume_imagine_anterioara, faces_of_image, path)
+                        positive_descriptors.extend(positive_descriptors_of_image)
 
-                    negative_descriptors.extend(negative_descriptors_of_image)
-                    print(f"setul de date al lui{nume_personaj}")
+                        negative_descriptors.extend(negative_descriptors_of_image)
+                        print(f"setul de date al lui {nume_personaj}")
 
-                    print(f"time for img{nume_imagine_anterioara} -> {time.time() - time_start}")
-                    time_start = time.time()
+                        print(f"time for img{nume_imagine_anterioara} -> {time.time() - time_start}")
+                        time_start = time.time()
 
-                    nume_imagine_anterioara = nume_imagine
-                    faces_of_image = [[xmin, ymin, xmax, ymax]]
-                else:
-                    faces_of_image.append([xmin, ymin, xmax, ymax])
+                        nume_imagine_anterioara = nume_imagine
+                        faces_of_image = [[xmin, ymin, xmax, ymax]]
+                    else:
+                        faces_of_image.append([xmin, ymin, xmax, ymax])
+
+            for line in lines:
+                nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
+                if nume_personaj == "andy":
+                    if nume_imagine != nume_imagine_anterioara:
+
+                        positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image1(
+                            nume_imagine_anterioara, faces_of_image, path)
+                        positive_descriptors.extend(positive_descriptors_of_image)
+
+                        negative_descriptors.extend(negative_descriptors_of_image)
+                        print(f"setul de date al lui {nume_personaj}")
+
+                        print(f"time for img{nume_imagine_anterioara} -> {time.time() - time_start}")
+                        time_start = time.time()
+
+                        nume_imagine_anterioara = nume_imagine
+                        faces_of_image = [[xmin, ymin, xmax, ymax]]
+                    else:
+                        faces_of_image.append([xmin, ymin, xmax, ymax])
 
             print(nume_personaj)
             print(f"imagini pozitive = {len(positive_descriptors)}")
@@ -208,38 +223,6 @@ class FacialDetector:
 
         return positive_descriptors, negative_descriptors
 
-    def get_negative_descriptors(self):
-        # in aceasta functie calculam descriptorii negativi
-        # vom returna un numpy array de dimensiuni NXD
-        # unde N - numar exemplelor negative
-        # iar D - dimensiunea descriptorului
-        # avem 274 de imagini negative, vream sa avem self.params.number_negative_examples (setat implicit cu 10000)
-        # de exemple negative, din fiecare imagine vom genera aleator self.params.number_negative_examples // 274
-        # patch-uri de dimensiune 36x36 pe care le vom considera exemple negative
-
-        images_path = os.path.join(self.params.dir_neg_examples, '*.jpg')
-        files = glob.glob(images_path)
-        num_images = len(files)
-        num_negative_per_image = self.params.number_negative_examples // num_images
-        negative_descriptors = []
-        print('Calculam descriptorii pt %d imagini negative' % num_images)
-        for i in range(num_images):
-            print('Procesam exemplul negativ numarul %d...' % i)
-            img = cv.imread(files[i], cv.IMREAD_GRAYSCALE)
-            # TODO: completati codul functiei in continuare
-            num_rows = img.shape[0]
-            num_cols = img.shape[1]
-            x = np.random.randint(low=0, high=num_cols - self.params.dim_window_x, size=num_negative_per_image)
-            y = np.random.randint(low=0, high=num_rows - self.params.dim_window_y, size=num_negative_per_image)
-
-            for idx in range(len(y)):
-                patch = img[y[idx]: y[idx] + self.params.dim_window_y, x[idx]: x[idx] + self.params.dim_window_x]
-                descr = hog(patch, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
-                            cells_per_block=(2, 2), feature_vector=False)
-                negative_descriptors.append(descr.flatten())
-
-        negative_descriptors = np.array(negative_descriptors)
-        return negative_descriptors
 
     def train_classifier(self, training_examples, train_labels):
         svm_file_name = os.path.join(self.params.dir_save_files, 'best_model_%d_%d_%d' %
@@ -255,15 +238,15 @@ class FacialDetector:
         Cs = [10 ** -5, 10 ** -4, 10 ** -3, 10 ** -2, 10 ** -1, 10 ** 0]
         for c in Cs:
             print('Antrenam un clasificator pentru c=%f' % c)
-            model = LinearSVC(C=c)
-            model.fit(training_examples, train_labels)
-            acc = model.score(training_examples, train_labels)
+            best_model = LinearSVC(C=c)
+            best_model.fit(training_examples, train_labels)
+            acc = best_model.score(training_examples, train_labels)
             print(acc)
             if acc > best_accuracy:
                 best_accuracy = acc
                 best_c = c
-                best_model = deepcopy(model)
-
+        best_model = LinearSVC(C=best_c)
+        best_model.fit(training_examples, train_labels)
         print('Performanta clasificatorului optim pt c = %f' % best_c)
         # salveaza clasificatorul
         pickle.dump(best_model, open(svm_file_name, 'wb'))
@@ -371,7 +354,7 @@ class FacialDetector:
             # TODO: completati codul functiei in continuare
             image_scores = []
             image_detections = []
-            for j in range(10, 40, 20):
+            for j in range(10, 41, 5):
                 img = cv.resize(img_originala, (0, 0), fx=j / 10, fy=j / 10)
                 hog_descriptors = hog(img, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                                       cells_per_block=(2, 2), feature_vector=False)
@@ -393,7 +376,7 @@ class FacialDetector:
                             image_scores.append(score)
                             # print(image_detections)
                             # print(image_scores)
-            for j in range(90, 60, -20):
+            for j in range(90, 59, -5):
                 img = cv.resize(img_originala, (0, 0), fx=j / 100, fy=j / 100)
                 hog_descriptors = hog(img, pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
                                       cells_per_block=(2, 2), feature_vector=False)
@@ -503,3 +486,7 @@ class FacialDetector:
         plt.title('Average precision %.3f' % average_precision)
         plt.savefig(os.path.join(self.params.dir_save_files, 'precizie_medie.png'))
         plt.show()
+    def generate_evaluare_txt(self, detections, scores, file_names):
+        with open("task1_gt_validare.txt", "w") as f:
+            for detectie, scor, file_name in zip(detections, scores, file_names):
+                f.write(file_name + " " + " ".join(str(pos) for pos in detectie) + "\n")

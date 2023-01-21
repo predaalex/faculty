@@ -83,6 +83,9 @@ facial_detector.train_classifier(training_examples, train_labels)
 
 detections, scores, file_names = facial_detector.run()
 
+
+facial_detector.generate_evaluare_txt(detections, scores, file_names)
+
 if params.has_annotations:
     facial_detector.eval_detections(detections, scores, file_names)
     show_detections_with_ground_truth(detections, scores, file_names, params)
