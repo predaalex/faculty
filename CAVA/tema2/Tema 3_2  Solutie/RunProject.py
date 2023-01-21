@@ -7,12 +7,12 @@ from Visualize import *
 
 
 params: Parameters = Parameters()
-params.dim_window = 120  # exemplele pozitive (fete de oameni cropate) au 36x36 pixeli
-params.dim_hog_cell = 10  # dimensiunea celulei
-params.overlap = 0.3
-
-params.has_annotations = True
-params.use_hard_mining = False  # (optional)antrenare cu exemple puternic negative
+# params.dim_window = 120  # exemplele pozitive (fete de oameni cropate) au 36x36 pixeli
+# params.dim_hog_cell = 10  # dimensiunea celulei
+# params.overlap = 0.3
+#
+# params.has_annotations = True
+# params.use_hard_mining = False  # (optional)antrenare cu exemple puternic negative
 params.use_flip_images = False  # adauga imaginile cu fete oglindite
 
 if params.use_flip_images:
@@ -23,13 +23,19 @@ facial_detector: FacialDetector = FacialDetector(params)
 # Pasii 1+2+3. Incarcam exemplele pozitive (cropate) si exemple negative generate
 # verificam daca sunt deja existente
 positive_descriptors_path = os.path.join(params.dir_save_files,
-                                         'descriptoriExemplePozitive_' + str(params.dim_hog_cell) + '_' +
+                                         'descriptoriExemplePozitive' +
+                                         str(params.dim_hog_cell) + '_' +
                                          str(params.crop_distance) + '_' +
+                                         str(params.dim_window_y) + '_' +
+                                         str(params.dim_window_x) + '_' +
                                          '.npy')
 
 negative_descriptors_path = os.path.join(params.dir_save_files,
-                                         'descriptoriExempleNegative_' + str(params.dim_hog_cell) + '_' +
+                                         'descriptoriExempleNegative' +
+                                         str(params.dim_hog_cell) + '_' +
                                          str(params.crop_distance) + '_' +
+                                         str(params.dim_window_y) + '_' +
+                                         str(params.dim_window_x) + '_' +
                                          '.npy')
 nume_personaj = "louie"
 if os.path.exists(positive_descriptors_path) and os.path.exists(negative_descriptors_path):
@@ -48,9 +54,23 @@ else:
 params.number_positive_examples = len(positive_descriptors)
 params.number_negative_examples = len(negative_descriptors)
 
+# print(f"pos descriptors \n "
+#       f"{positive_descriptors[0].shape}"
+#       f"{positive_descriptors[1].shape}"
+#       f"{positive_descriptors[2].shape}"
+#       f"{positive_descriptors.shape}"
+#       )
+# print(f"neg descriptors \n "
+#       f"{negative_descriptors[0].shape}"
+#       f"{negative_descriptors[1].shape}"
+#       f"{negative_descriptors[2].shape}"
+#       f"{negative_descriptors.shape}"
+#       )
+
 
 # Pasul 4. Invatam clasificatorul liniar
-training_examples = np.concatenate((np.squeeze(positive_descriptors), np.squeeze(negative_descriptors)), axis=0)
+training_examples = np.concatenate((np.squeeze(positive_descriptors),
+                                    np.squeeze(negative_descriptors)), axis=0)
 train_labels = np.concatenate((np.ones(params.number_positive_examples), np.zeros(params.number_negative_examples)))
 facial_detector.train_classifier(training_examples, train_labels)
 
@@ -62,6 +82,9 @@ facial_detector.train_classifier(training_examples, train_labels)
 
 
 detections, scores, file_names = facial_detector.run()
+
+
+facial_detector.generate_evaluare_txt(detections, scores, file_names)
 
 if params.has_annotations:
     facial_detector.eval_detections(detections, scores, file_names)
