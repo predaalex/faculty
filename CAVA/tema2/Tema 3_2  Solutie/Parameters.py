@@ -1,11 +1,9 @@
 import os
-
+import numpy as np
 
 class Parameters:
     def __init__(self):
         self.base_dir = '../resources'
-        self.dir_pos_examples = os.path.join(self.base_dir, 'antrenare/andy')
-        self.dir_neg_examples = os.path.join(self.base_dir, 'antrenare/andy')
         self.dir_test_examples = os.path.join(self.base_dir,
                                               'validare/Validare')  # 'exempleTest/CursVA'   'exempleTest/CMU+MIT'
         self.path_annotations = os.path.join(self.base_dir, 'validare/task1_gt_validare.txt')
@@ -17,7 +15,15 @@ class Parameters:
             print('directory {} exists '.format(self.dir_save_files))
 
         # set the parameters
-        # self.dim_window = 120
+        # self.nume_personaje = ["andy", "louie", "ora", "tommy"]
+        # self.nume_personaje = ["louie", "andy"]
+        # self.nume_personaje = ["ora"]
+        self.dim_window_x = None
+        self.dim_window_y = None
+        self.dim_hog_cell = None
+        self.threshold = None
+        self.nume_descriptor = None
+
         # pentru ora 0.55
         # self.dim_window_x = 90
         # self.dim_window_y = 130
@@ -39,17 +45,21 @@ class Parameters:
         # self.threshold = 3.5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
         # self.nume_descriptor = "louie"
 
-        # pentru tommy
-        self.dim_window_x = 120
-        self.dim_window_y = 80
-        self.dim_hog_cell = 8    # dimensiunea celulei
-        self.threshold = 5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
-        self.nume_descriptor = "tommy"
-
+        # pentru tommy 0.12
+        # self.dim_window_x = 120
+        # self.dim_window_y = 80
+        # self.dim_hog_cell = 8    # dimensiunea celulei
+        # self.threshold = 5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
+        # self.nume_descriptor = "tommy"
 
         self.crop_distance = 3
         self.dim_descriptor_cell = 36  # dimensiunea descriptorului unei celule
         self.overlap = 0.3
         self.number_positive_examples = 0  # numarul exemplelor pozitive
         self.number_negative_examples = 0  # numarul exemplelor negative
-        self.has_annotations = True
+        self.detections = None  # array cu toate detectiile pe care le obtinem
+        self.scores = np.array([])  # array cu toate scorurile pe care le obtinem
+        self.file_names = np.array([])  # array cu fisiele, in aceasta lista fisierele vor aparea de mai multe ori,
+        self.face_clasifications = np.array([])  # array cu numele fetelor
+
+        self.has_annotations = False

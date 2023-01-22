@@ -58,13 +58,7 @@ class FacialDetector:
                                cells_per_block=(2, 2),
                                # visualize=True,
                                feature_vector=True)
-                # flip_features = hog(np.fliplr(crop_img),
-                #                      pixels_per_cell=(self.params.dim_hog_cell, self.params.dim_hog_cell),
-                #                      cells_per_block=(2, 2),
-                #                      visualize=True,
-                #                      feature_vector=True)
                 pos_descriptors.append(features)
-                # pos_descriptors.append(flip_features)
 
         ### iau random din aceeasi imagine, acelasi numar de descriptori negativi
         while len(neg_descriptors) < len(pos_descriptors) * 2:
@@ -147,7 +141,7 @@ class FacialDetector:
 
         return pos_descriptors, neg_descriptors
 
-    def get_descriptors(self, nume_personaj):
+    def get_descriptors(self):
         # in aceasta functie calculam descriptorii pozitivi
         # vom returna un numpy array de dimensiuni NXD
         # unde N - numar exemplelor pozitive
@@ -171,7 +165,6 @@ class FacialDetector:
                 nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
                 if nume_personaj == self.params.nume_descriptor:
                     if nume_imagine != nume_imagine_anterioara:
-
                         positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image1(
                             nume_imagine_anterioara, faces_of_image, path)
                         positive_descriptors.extend(positive_descriptors_of_image)
@@ -186,26 +179,6 @@ class FacialDetector:
                         faces_of_image = [[xmin, ymin, xmax, ymax]]
                     else:
                         faces_of_image.append([xmin, ymin, xmax, ymax])
-
-            # for line in lines:
-            #     nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
-            #     if nume_personaj == "andy":
-            #         if nume_imagine != nume_imagine_anterioara:
-            #
-            #             positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image1(
-            #                 nume_imagine_anterioara, faces_of_image, path)
-            #             positive_descriptors.extend(positive_descriptors_of_image)
-            #
-            #             negative_descriptors.extend(negative_descriptors_of_image)
-            #             print(f"setul de date al lui {nume_personaj}")
-            #
-            #             print(f"time for img{nume_imagine_anterioara} -> {time.time() - time_start}")
-            #             time_start = time.time()
-            #
-            #             nume_imagine_anterioara = nume_imagine
-            #             faces_of_image = [[xmin, ymin, xmax, ymax]]
-            #         else:
-            #             faces_of_image.append([xmin, ymin, xmax, ymax])
 
             print(nume_personaj)
             print(f"imagini pozitive = {len(positive_descriptors)}")
@@ -482,7 +455,22 @@ class FacialDetector:
         plt.title('Average precision %.3f' % average_precision)
         plt.savefig(os.path.join(self.params.dir_save_files, 'precizie_medie.png'))
         plt.show()
-    def generate_evaluare_txt(self, detections, scores, file_names):
-        with open("task1_gt_validare.txt", "w") as f:
-            for detectie, scor, file_name in zip(detections, scores, file_names):
-                f.write(file_name + " " + " ".join(str(pos) for pos in detectie) + "\n")
+    def generate_evaluare_task2(self, detections, scores, file_names, nume_personaj):
+        path = "task2/"
+        try:
+            os.mkdir(path)
+        except OSError as error:
+            print("acest fisier exista deja")
+        np.save(path + "detections_" + nume_personaj, detections)
+        np.save(path + "file_names_" + nume_personaj, file_names)
+        np.save(path + "scores_" + nume_personaj, scores)
+
+    def generate_evaluare_task1(self, detections, scores, file_names):
+        path = "task1/"
+        try:
+            os.mkdir(path)
+        except OSError as error:
+            print("acest fisier exista deja")
+        np.save(path + "detections_all_faces", detections)
+        np.save(path + "file_names_all_faces", file_names)
+        np.save(path + "scores_all_faces", scores)
