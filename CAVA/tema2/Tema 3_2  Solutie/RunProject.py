@@ -15,15 +15,14 @@ params: Parameters = Parameters()
 # params.use_hard_mining = False  # (optional)antrenare cu exemple puternic negative
 params.use_flip_images = False  # adauga imaginile cu fete oglindite
 
-if params.use_flip_images:
-    params.number_positive_examples *= 2
 
 facial_detector: FacialDetector = FacialDetector(params)
 
 # Pasii 1+2+3. Incarcam exemplele pozitive (cropate) si exemple negative generate
 # verificam daca sunt deja existente
 positive_descriptors_path = os.path.join(params.dir_save_files,
-                                         'descriptoriExemplePozitive' +
+                                         'descriptoriExemplePozitive' + '_' +
+                                         str(params.nume_descriptor) + '_' +
                                          str(params.dim_hog_cell) + '_' +
                                          str(params.crop_distance) + '_' +
                                          str(params.dim_window_y) + '_' +
@@ -31,7 +30,8 @@ positive_descriptors_path = os.path.join(params.dir_save_files,
                                          '.npy')
 
 negative_descriptors_path = os.path.join(params.dir_save_files,
-                                         'descriptoriExempleNegative' +
+                                         'descriptoriExempleNegative' + '_' +
+                                         str(params.nume_descriptor) + '_' +
                                          str(params.dim_hog_cell) + '_' +
                                          str(params.crop_distance) + '_' +
                                          str(params.dim_window_y) + '_' +
@@ -41,10 +41,10 @@ nume_personaj = "louie"
 if os.path.exists(positive_descriptors_path) and os.path.exists(negative_descriptors_path):
     positive_descriptors = np.load(positive_descriptors_path)
     negative_descriptors = np.load(negative_descriptors_path)
-    print(f'Am incarcat descriptorii pentru exemplele pozitive si negative pentru {nume_personaj}')
+    print(f'Am incarcat descriptorii pentru exemplele pozitive si negative pentru {params.nume_descriptor}')
 else:
     print('Construim descriptorii pentru exemplele pozitive si negative:')
-    positive_descriptors, negative_descriptors = facial_detector.get_descriptors(nume_personaj)
+    positive_descriptors, negative_descriptors = facial_detector.get_descriptors(params.nume_descriptor)
     np.save(positive_descriptors_path, positive_descriptors)
     np.save(negative_descriptors_path, negative_descriptors)
     print('Am salvat descriptorii pentru exemplele pozitive in fisierul %s' % positive_descriptors_path)

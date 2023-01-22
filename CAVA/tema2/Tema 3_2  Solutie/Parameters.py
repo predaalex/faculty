@@ -18,14 +18,38 @@ class Parameters:
 
         # set the parameters
         # self.dim_window = 120
-        self.dim_window_x = 100
-        self.dim_window_y = 150
-        self.dim_hog_cell = 8  # dimensiunea celulei
-        self.crop_distance = 5
-        self.threshold = 4.5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
+        # pentru ora 0.55
+        # self.dim_window_x = 90
+        # self.dim_window_y = 130
+        # self.dim_hog_cell = 10  # dimensiunea celulei
+        # self.threshold = 3.75  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
+        # self.nume_descriptor = "ora"
+
+        # pentru andy 0.544 -> 90 140 3.5
+        # self.dim_window_x = 90
+        # self.dim_window_y = 140
+        # self.dim_hog_cell = 10  # dimensiunea celulei
+        # self.threshold = 3.5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
+        # self.nume_descriptor = "andy"
+
+        # pentru louie 0.568
+        # self.dim_window_x = 110
+        # self.dim_window_y = 85
+        # self.dim_hog_cell = 10  # dimensiunea celulei
+        # self.threshold = 3.5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
+        # self.nume_descriptor = "louie"
+
+        # pentru tommy
+        self.dim_window_x = 120
+        self.dim_window_y = 80
+        self.dim_hog_cell = 8    # dimensiunea celulei
+        self.threshold = 5  # toate ferestrele cu scorul > threshold si maxime locale devin detectii
+        self.nume_descriptor = "tommy"
+
+
+        self.crop_distance = 3
         self.dim_descriptor_cell = 36  # dimensiunea descriptorului unei celule
         self.overlap = 0.3
         self.number_positive_examples = 0  # numarul exemplelor pozitive
         self.number_negative_examples = 0  # numarul exemplelor negative
-        self.overlap = 0.3
         self.has_annotations = True

@@ -67,7 +67,7 @@ class FacialDetector:
                 # pos_descriptors.append(flip_features)
 
         ### iau random din aceeasi imagine, acelasi numar de descriptori negativi
-        while len(neg_descriptors) < len(pos_descriptors):
+        while len(neg_descriptors) < len(pos_descriptors) * 2:
             y, x = random.randint(0, img.shape[0] - self.params.dim_window_y - 1), \
                 random.randint(0, img.shape[1] - self.params.dim_window_x - 1)
 
@@ -157,7 +157,7 @@ class FacialDetector:
         positive_descriptors = []
         negative_descriptors = []
         nume_personaje = ["andy", "louie", "ora", "tommy"]
-        nume_personaje = ["ora", "andy"]
+        # nume_personaje = ["ora", "andy"]
         # nume_personaje = ["louie", "tommy"]
         for nume_personaj in nume_personaje:
             path = "../resources/antrenare/" + nume_personaj + "/"
@@ -169,7 +169,7 @@ class FacialDetector:
             lines.append(f"end0 1 2 3 4 {nume_personaj}5\n")
             for line in lines:
                 nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
-                if nume_personaj == "ora":
+                if nume_personaj == self.params.nume_descriptor:
                     if nume_imagine != nume_imagine_anterioara:
 
                         positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image1(
@@ -187,25 +187,25 @@ class FacialDetector:
                     else:
                         faces_of_image.append([xmin, ymin, xmax, ymax])
 
-            for line in lines:
-                nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
-                if nume_personaj == "andy":
-                    if nume_imagine != nume_imagine_anterioara:
-
-                        positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image1(
-                            nume_imagine_anterioara, faces_of_image, path)
-                        positive_descriptors.extend(positive_descriptors_of_image)
-
-                        negative_descriptors.extend(negative_descriptors_of_image)
-                        print(f"setul de date al lui {nume_personaj}")
-
-                        print(f"time for img{nume_imagine_anterioara} -> {time.time() - time_start}")
-                        time_start = time.time()
-
-                        nume_imagine_anterioara = nume_imagine
-                        faces_of_image = [[xmin, ymin, xmax, ymax]]
-                    else:
-                        faces_of_image.append([xmin, ymin, xmax, ymax])
+            # for line in lines:
+            #     nume_imagine, xmin, ymin, xmax, ymax, nume_personaj = line_info(line)
+            #     if nume_personaj == "andy":
+            #         if nume_imagine != nume_imagine_anterioara:
+            #
+            #             positive_descriptors_of_image, negative_descriptors_of_image = self.get_descriptors_of_image1(
+            #                 nume_imagine_anterioara, faces_of_image, path)
+            #             positive_descriptors.extend(positive_descriptors_of_image)
+            #
+            #             negative_descriptors.extend(negative_descriptors_of_image)
+            #             print(f"setul de date al lui {nume_personaj}")
+            #
+            #             print(f"time for img{nume_imagine_anterioara} -> {time.time() - time_start}")
+            #             time_start = time.time()
+            #
+            #             nume_imagine_anterioara = nume_imagine
+            #             faces_of_image = [[xmin, ymin, xmax, ymax]]
+            #         else:
+            #             faces_of_image.append([xmin, ymin, xmax, ymax])
 
             print(nume_personaj)
             print(f"imagini pozitive = {len(positive_descriptors)}")
@@ -217,15 +217,11 @@ class FacialDetector:
         positive_descriptors = np.array(positive_descriptors)
         negative_descriptors = np.array(negative_descriptors)
 
-        print(f"shape pos = {positive_descriptors.shape}")
-        print(f"shape neg = {negative_descriptors.shape}")
-
-
         return positive_descriptors, negative_descriptors
 
 
     def train_classifier(self, training_examples, train_labels):
-        svm_file_name = os.path.join(self.params.dir_save_files, 'best_model_%d_%d_%d' %
+        svm_file_name = os.path.join(self.params.dir_save_files, 'best_model' + self.params.nume_descriptor + '_%d_%d_%d' %
                                      (self.params.dim_hog_cell, self.params.number_negative_examples,
                                       self.params.number_positive_examples))
         if os.path.exists(svm_file_name):

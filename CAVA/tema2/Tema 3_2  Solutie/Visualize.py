@@ -27,7 +27,7 @@ def show_detections_without_ground_truth(detections, scores, file_names, params:
         current_scores = scores[indices_detections_current_image]
 
         for idx, detection in enumerate(current_detections):
-            cv.rectangle(image, (detection[0], detection[1]), (detection[2], detection[3]), (0, 0, 255), thickness=1)
+            cv.rectangle(image, (detection[0], detection[1]), (detection[2], detection[3]), (0, 255, 0), thickness=1)
             cv.putText(image, 'score:' + str(current_scores[idx])[:4], (detection[0], detection[1]),
                        cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
         cv.imwrite(os.path.join(params.dir_save_files, "detections_" + short_file_name), image)
