@@ -1,0 +1,35 @@
+3 - > Citim slide-ul
+
+4 - > Citim slide-ul
+
+5 - > citim pe acolo
+
+5 - > 
+	In cazul nostru, pentru a realizat un agent care poate juca tintar competitiv, ne-am putea folosi de invatare supervizata.
+	Sa punem un jucator profesionist de tintar sa joace cateva ore multiple jocuri, astfel creeand un set de date pe care
+	l-am putea folosi pentru a antrena o retea sa joace acelasi stil si aceleasi tactici.
+	Insa noi dorim sa realizam un "jucator" si mai bun, nu sa ne oprim la nivelul respectiv.
+	Astfel, o sa ne folosim de invatare prin recompense.
+	
+	In RL, reteaua care transforma inputul(pozitiile pieselor) in outcome(urmatoarea mutare) se numeste policy network(retea politica)
+	O modalitate simpla de a antrena un policy network este cu ajutorul metodei numita policy gradients
+	Abordarea pe care o avem in policy gradients este ca incepem cu o retea complet aleatoare, ii dai acelei retele un frame,
+	o stare a jocului( pozitiile piselor ), face o mutare total aleatoare, trimiti acea mutare inapoi in joc, iar jocul(oponentul)
+	face urmatoarea mutare si asa continua bucla
+	In acest caz este o retea fully connected, dar bineinteles, poti aplica si convolutii
+	In realitate, cand antrenam aceasta retea, si ajungem in aceeasi stare, o sa facem o alta algere fata de cea anterioara
+	pentru a explora si alt path al jocului in speranta de a descoperi un reward mai bun si/sau un comportament mai bun.
+	
+6 - > 
+	Deci, pentru a antrena o astfel de retea, incepem prin a face o multitudine de mutari random, din care optimizam pe cat posibil gradientii
+	adica simulam o groaza de jocuri, facem foarte multe decizii si oferim recompense in functie de output ul jocului
+	Evident ca in aceasta parte de antrenare agent-ul nu a invatat nimic si este probabil sa piarda majoritatea jocurilor,
+	dar uneori exista posibilitatea ca prin noroc agentul nostru sa castige, moment in care acesta va primi o recompensa
+	Cel mai important lucru pe care trebuie sa il intelegem, este ca trecand prin fiecare episod, fie acesta castigator sau pierzator,
+	putem calcula valorile gradientilor, care determina actiunile agentului pe care le-a ales, si le va folosi in viitor
+	Deci ce vor face acesti policy gradients, pentru fiecare path castigator, 
+	adaugam gradientilor o probabilitate mai mare sa foloseasca aceste mutarile unui path in viitor,
+	iar de fiecare data cand acesta pierde jocul, vom aplica aceeasi probabilitate, doar ca inmultita cu -1, pentru a fi scazuta
+	In acest fel filtram mutarile proaste de cele bune
+	
+	
