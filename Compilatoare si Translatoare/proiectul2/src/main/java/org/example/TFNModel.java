@@ -2,35 +2,34 @@ package org.example;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Scanner;
 
-public class AFNModel {
+public class TFNModel {
     public ArrayList<State> stateArrayList;
 
-    public AFNModel() {
+    public TFNModel() {
         stateArrayList = new ArrayList<>();
     }
 
     @Override
     public String toString() {
-        return "AFNModel{" +
+        return "TFNModel{" +
                 "stateArrayList=" + stateArrayList +
                 '}';
     }
 
     public static void main(String[] args) {
-        // functia de initializare afn
-        AFNModel afn = afnInit();
+        // functia de initializare tfn
+        TFNModel tfn = tfnInit();
 
         // citim sirurile si cautam pathurile valide
-        try (Scanner scanner = new Scanner(new File("C:\\Users\\allex\\Desktop\\git_repos\\faculty\\Compilatoare si Translatoare\\proiectul2\\src\\main\\resources\\input.txt"))) {
+        try (Scanner scanner = new Scanner(new File("src\\main\\resources\\input.txt"))) {
             while (scanner.hasNextLine()) {
                 String inputLine = scanner.nextLine();
                 System.out.println(inputLine + "\nAcest sir contine urmatoarele pathuri valide:\n" +
-                        afn.pathFinder(inputLine) + "\n");
+                        tfn.pathFinder(inputLine) + "\n");
             }
         } catch (FileNotFoundException fnfe) {
             fnfe.printStackTrace();
@@ -80,13 +79,13 @@ public class AFNModel {
         return null;
     }
 
-    private static AFNModel afnInit() {
-        AFNModel afn = new AFNModel();
+    private static TFNModel tfnInit() {
+        TFNModel tfn = new TFNModel();
         // 0 state
         ArrayList<Transition> transitions = new ArrayList<>();
         transitions.add(new Transition("a", 1));
 
-        afn.stateArrayList.add(new State(0, false, transitions));
+        tfn.stateArrayList.add(new State(0, false, transitions));
 
         // 1 state
         transitions = new ArrayList<>();
@@ -94,26 +93,26 @@ public class AFNModel {
         transitions.add(new Transition(null, 2));
         transitions.add(new Transition("a", 3));
 
-        afn.stateArrayList.add(new State(1, false, transitions));
+        tfn.stateArrayList.add(new State(1, false, transitions));
 
         // 2 state
         transitions = new ArrayList<>();
         transitions.add(new Transition("b", 3));
         transitions.add(new Transition("c", 4));
 
-        afn.stateArrayList.add(new State(2, false, transitions));
+        tfn.stateArrayList.add(new State(2, false, transitions));
 
         // 3 state
         transitions = new ArrayList<>();
         transitions.add(new Transition("c", 4));
 
-        afn.stateArrayList.add(new State(3, true, transitions));
+        tfn.stateArrayList.add(new State(3, true, transitions));
 
         // 4 state
         transitions = new ArrayList<>();
         transitions.add(new Transition("a", 2));
 
-        afn.stateArrayList.add(new State(4, false, transitions));
-        return afn;
+        tfn.stateArrayList.add(new State(4, false, transitions));
+        return tfn;
     }
 }
