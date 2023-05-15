@@ -4,12 +4,29 @@
 #include <unistd.h>
 
 int main() {
-    char buffer1[1024], buffer2[1024];
-    char *new_pwd = "C:\\Users\\allex\\Downloads\\DDD_sem2_2022_2023"; // schimba cu directorul dorit
+    size_t size = PATH_MAX; // marimea maxima a path ului
+
+    char *buffer1 = NULL, *buffer2 = NULL;
+
+    buffer1 = malloc(size * sizeof(char));
+    buffer2 = malloc(size * sizeof(char));
+
+    if (buffer1 == NULL || buffer2 == NULL) {
+        perror("Failed to alocate memory\n");
+        exit(EXIT_FAILURE);
+    }
+
+    char *new_pwd = "C:\\Users\\allex\\Downloads\\353_Preda_Alexandru-Florin.zip\\353_Preda_Alexandru-Florin"; // schimba cu directorul dorit
+
 
     // obtinem directorul curent
-    if (getcwd(buffer1, sizeof(buffer1)) == NULL) {
+    if (getcwd(buffer1, size) == NULL) {
         perror("getcwd() error");
+        exit(EXIT_FAILURE);
+    }
+
+    if (strcmp(buffer1, new_pwd) == 0) {
+        perror("path-ul nou este acelasi cu cel curent");
         exit(EXIT_FAILURE);
     }
 
@@ -25,7 +42,7 @@ int main() {
     }
 
     // obtinem noul director curent
-    if (getcwd(buffer2, sizeof(buffer2)) == NULL) {
+    if (getcwd(buffer2, size) == NULL) {
         perror("getcwd() error");
         exit(EXIT_FAILURE);
     }
