@@ -5,9 +5,12 @@ import cv2
 def click_event(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         # Print the coordinates
-        coords.append(f"({x}, {y})")
+        coords.append(f"({x}, {y}), ")
         if len(coords) == 4:
-            print(', '.join(coords))
+            output = ""
+            for coord in coords:
+                output += coord
+            print(output[:-2])
         elif len(coords) >= 5:
             coords.clear()
             coords.append(f"({x}, {y}),")
@@ -24,7 +27,7 @@ def click_event(event, x, y, flags, param):
 
 
 # Read the image
-image_path = './CV-2024-Project2/train/Task1/09_1.jpg'
+image_path = '../train/Task1/09_1.jpg'
 image = cv2.imread(image_path)
 coords = []
 
