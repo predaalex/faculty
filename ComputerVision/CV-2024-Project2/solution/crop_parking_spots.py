@@ -98,17 +98,17 @@ def predict_image(crop_img, score_threshold=0.3):
 
 print(predict_image(img))
 
-# for i, points in enumerate(parking_spots, start=1):
-#     # Crop the polygonal parking spot from the image
-#     crop_img = crop_polygon(image, points)
-#
-#     to_predict_crop_img = Image.fromarray(crop_img)
-#     crop_img_label = predict_image(to_predict_crop_img)
-#
-#     # Save the cropped image
-#     cv.imshow(f"SPOT{i}|CLASS{crop_img_label}", crop_img)
-#     cv.imwrite("test.jpg", crop_img)
-#     cv.waitKey(0)
-#     cv.destroyWindow(f"SPOT{i}|CLASS{crop_img_label}")
+for i, points in enumerate(parking_spots, start=1):
+    # Crop the polygonal parking spot from the image
+    crop_img = crop_polygon(image, points)
+
+    to_predict_crop_img = Image.fromarray(crop_img)
+    crop_img_label = predict_image(to_predict_crop_img)
+
+    # Save the cropped image
+    cv.imshow(f"SPOT{i}|CLASS{crop_img_label}", crop_img)
+    cv.imwrite("test.jpg", crop_img)
+    cv.waitKey(0)
+    cv.destroyWindow(f"SPOT{i}|CLASS{crop_img_label}")
 
 cv.destroyAllWindows()
