@@ -1,1 +1,2 @@
 *.jpg filter=lfs diff=lfs merge=lfs -text
+PrelucrareaSemnalelor/tema2/fourrie.jpg filter=lfs diff=lfs merge=lfs -text
