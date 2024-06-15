@@ -8,7 +8,6 @@ import torchvision.models as models
 from torchvision.io import read_image
 import os
 
-
 if torch.backends.mps.is_available():
     device = torch.device("mps")
     print("MPS device available")
@@ -71,7 +70,7 @@ def predict_image(img_path, model, transformer, score_threshold=0.8):
     with torch.no_grad():
         outputs = model(img)
         predicted_class = (outputs >= score_threshold).float().item()
-        return predicted_class
+        return predicted_class, outputs.item()
 
 
 def process_querry(querry_path):
@@ -103,15 +102,15 @@ parking_spots_coords = [
     np.array([(1173, 532), (1069, 685), (1166, 776), (1269, 590)], dtype=np.int32),  # Spot 5
     np.array([(1109, 480), (974, 632), (1084, 706), (1196, 540)], dtype=np.int32),  # Spot 6
     np.array([(1045, 448), (918, 578), (1014, 648), (1117, 490)], dtype=np.int32),  # Spot 7
-    np.array([(913, 404), (816, 491), (886, 547), (983, 457)], dtype=np.int32),  # Spot 8
+    np.array([(971, 446), (864, 534), (942, 593), (1034, 487)], dtype=np.int32),  # Spot 8
     np.array([(918, 415), (817, 495), (881, 544), (982, 458)], dtype=np.int32),  # Spot 9
     np.array([(874, 385), (771, 445), (839, 506), (936, 428)], dtype=np.int32),  # Spot 10
 ]
 
+test_data_path = "../train/Task1/"
+solution_dir_path = './tmp/Task1/'
 
-data_path = "../train/Task1/"
-
-img_paths, querry_paths, gt_querry_paths = get_all_paths(data_path)
+img_paths, querry_paths, gt_querry_paths = get_all_paths(test_data_path)
 
 transformer = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize to match ResNet input size
@@ -130,28 +129,28 @@ model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
 wrong_predictions = []
-
 for img_path, querry_path, gt_querry_path in zip(img_paths, querry_paths, gt_querry_paths):
-    original_img_cv = cv.imread(img_path)
+    original_img_cv = cv.imread(img_path, cv.IMREAD_COLOR)
 
     parking_spots_to_predict = process_querry(querry_path)
     labels = process_gt_querry(gt_querry_path)
 
+    file = open(solution_dir_path + img_path.split('/')[-1].split('.')[0] + '.txt', 'w+')
+    file.write(f'{len(parking_spots_to_predict)}\n')
+
     for spot_idx, label in zip(parking_spots_to_predict, labels):
         spot_idx -= 1
-
         crop_img_cv = crop_polygon(original_img_cv, parking_spots_coords[spot_idx])
-
         cv.imwrite("tmp.png", crop_img_cv)
-
-        predict_label = predict_image("tmp.png", model, transformer)
+        predict_label, probability = predict_image("tmp.png", model, transformer)
+        file.write(f'{spot_idx + 1} {int(predict_label)}\n')
 
         if predict_label != label:
+            print(gt_querry_path, label, spot_idx + 1)
             wrong_predictions.append(crop_img_cv)
 
 print(len(wrong_predictions))
-
-for wrong_prediction in wrong_predictions:
-    cv.imshow("image", wrong_prediction)
+for idx, wrong_prediction in enumerate(wrong_predictions):
+    cv.imshow("wrong_prediciton", wrong_prediction)
     cv.waitKey(0)
 cv.destroyAllWindows()
