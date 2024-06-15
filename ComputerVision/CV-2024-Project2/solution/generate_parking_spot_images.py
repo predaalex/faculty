@@ -42,8 +42,8 @@ parking_spots_coords = [
     np.array([(913, 404), (816, 491), (886, 547), (983, 457)], dtype=np.int32),  # Spot 8
     np.array([(918, 415), (817, 495), (881, 544), (982, 458)], dtype=np.int32),  # Spot 9
     np.array([(874, 385), (771, 445), (839, 506), (936, 428)], dtype=np.int32),  # Spot 10
-    np.array([(736, 506), (734, 618), (915, 653), (928, 543)], dtype=np.int32),  # Random car
-    np.array([(723, 838), (828, 1032), (1008, 1008), (898, 827)], dtype=np.int32),  # Empty car
+    # np.array([(736, 506), (734, 618), (915, 653), (928, 543)], dtype=np.int32),  # Random car
+    # np.array([(723, 838), (828, 1032), (1008, 1008), (898, 827)], dtype=np.int32),  # Empty car
 ]
 
 
@@ -52,11 +52,14 @@ img_paths = get_all_paths(path)
 
 cropped_images = []
 
-for img_path in img_paths:
+for idx_path, img_path in enumerate(img_paths, start=0):
     img = cv.imread(img_path)
-    for i, points in enumerate(parking_spots_coords, start=1):
+    for idx_park_spot, points in enumerate(parking_spots_coords, start=1):
         crop_img = crop_polygon(img, points)
+
         cropped_images.append(crop_img)
+        cv.imwrite(f"./data/vehicles/new_{idx_path * len(parking_spots_coords) + idx_park_spot}.png", crop_img)
+
     #     cv.imshow('Parking Spots', crop_img)
     #     cv.waitKey(0)
     # cv.destroyAllWindows()

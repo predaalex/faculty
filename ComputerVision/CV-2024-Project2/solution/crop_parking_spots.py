@@ -5,6 +5,7 @@ from PIL import Image
 from torch import nn
 from torchvision.transforms import transforms
 import torchvision.models as models
+from torchvision.io import read_image
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -36,10 +37,7 @@ def crop_polygon(image, points):
     return cropped_image
 
 
-# Load the image
-root_path = "./CV-2024-Project2/train/Task1/"
-image_path = root_path + "09_1.jpg"
-image = cv.imread(image_path)
+
 
 # Define the polygonal coordinates for each parking spot
 # Each set of points is a list of (x, y) tuples
@@ -54,18 +52,15 @@ parking_spots = [
     np.array([(982, 434), (871, 535), (943, 596), (1041, 486)], dtype=np.int32),  # Spot 8
     np.array([(936, 404), (827, 493), (892, 546), (989, 445)], dtype=np.int32),  # Spot 9
     np.array([(890, 377), (776, 466), (840, 518), (935, 414)], dtype=np.int32),  # Spot 10
-    np.array([(736, 506), (734, 618), (915, 653), (928, 543)], dtype=np.int32),  # Random car
-    np.array([(723, 838), (828, 1032), (1008, 1008), (898, 827)], dtype=np.int32),  # Empty car
-
+    # np.array([(736, 506), (734, 618), (915, 653), (928, 543)], dtype=np.int32),  # Random car
+    # np.array([(723, 838), (828, 1032), (1008, 1008), (898, 827)], dtype=np.int32),  # Empty car
 ]
 
 # Loop through each parking spot, crop and save the image
 cropped_images = []
 
 transformer = transforms.Compose([
-    transforms.Resize((64, 64)),  # Resize to match ResNet input size
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    transforms.Resize((224, 224)),  # Resize to match ResNet input size
 ])
 
 model = models.resnet34()
@@ -81,12 +76,12 @@ model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 model.to(device)
 
-img_path = './test.png'
-img = Image.open(image_path)
+root_path = "../train/Task1/"
+image_path = root_path + "09_1.jpg"
 
-
-def predict_image(crop_img, score_threshold=0.3):
-    img = transformer(crop_img)
+def predict_image(crop_img_path, score_threshold=0.8):
+    img = read_image(crop_img_path).float() / 255.0
+    img = transformer(img)
     img = img.unsqueeze(0)
     img = img.to(device)
     with torch.no_grad():
@@ -96,14 +91,14 @@ def predict_image(crop_img, score_threshold=0.3):
         return predicted_class
 
 
-print(predict_image(img))
-
 for i, points in enumerate(parking_spots, start=1):
-    # Crop the polygonal parking spot from the image
-    crop_img = crop_polygon(image, points)
+    cv_image = cv.imread(image_path)
 
-    to_predict_crop_img = Image.fromarray(crop_img)
-    crop_img_label = predict_image(to_predict_crop_img)
+    # Crop the polygonal parking spot from the image
+    crop_img = crop_polygon(cv_image, points)
+
+    cv.imwrite("tmp.png", crop_img)
+    crop_img_label = predict_image("tmp.png")
 
     # Save the cropped image
     cv.imshow(f"SPOT{i}|CLASS{crop_img_label}", crop_img)
