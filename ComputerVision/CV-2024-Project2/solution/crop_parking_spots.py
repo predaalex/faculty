@@ -37,8 +37,6 @@ def crop_polygon(image, points):
     return cropped_image
 
 
-
-
 # Define the polygonal coordinates for each parking spot
 # Each set of points is a list of (x, y) tuples
 parking_spots = [
@@ -78,6 +76,7 @@ model.to(device)
 
 root_path = "../train/Task1/"
 image_path = root_path + "09_1.jpg"
+
 
 def predict_image(crop_img_path, score_threshold=0.8):
     img = read_image(crop_img_path).float() / 255.0
