@@ -146,7 +146,7 @@ for img_path, querry_path, gt_querry_path in zip(img_paths, querry_paths, gt_que
         file.write(f'{spot_idx + 1} {int(predict_label)}\n')
 
         if predict_label != label:
-            print(gt_querry_path, label, spot_idx + 1)
+            print(gt_querry_path, label, probability, spot_idx + 1)
             wrong_predictions.append(crop_img_cv)
 
 print(len(wrong_predictions))
