@@ -86,7 +86,7 @@ parking_spots_coords = [
 ]
 
 test_data_path = "../train/Task2/"
-solution_dir_path = './tmp/Task2/'
+solution_dir_path = '../solution_dir/Task2/'
 model_path = 'model.pth'
 video_paths = get_paths(test_data_path, extension='mp4')
 text_paths = get_paths(test_data_path, extension='txt')

@@ -107,8 +107,8 @@ parking_spots_coords = [
     np.array([(874, 385), (771, 445), (839, 506), (936, 428)], dtype=np.int32),  # Spot 10
 ]
 
-test_data_path = "../train/Task1/"
-solution_dir_path = './tmp/Task1/'
+test_data_path = "../../Preda_Alexandru-Florin_Project2/Preda_Alexandru-Florin/test/Task1/"
+solution_dir_path = '../solution_dir/Task1/'
 
 img_paths, querry_paths, gt_querry_paths = get_all_paths(test_data_path)
 
