@@ -7,7 +7,7 @@ N = 20
 #create some artificial data. 
 
 with pm.Model():
-    tmp = pm.Weibull("tmp", alpha = 2, beta = 5)
+    tmp = pm.Weibull("tmp.csv", alpha = 2, beta = 5)
 
 lifetime = pm.draw(tmp, draws=N)
 birth = np.random.uniform(0, 10, N)
