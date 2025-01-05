@@ -3,10 +3,8 @@ package org.example;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.ro.RomanianAnalyzer;
@@ -30,7 +28,7 @@ import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 
 
-public class Main {
+public class IRSystem {
     public static void main(String[] args) throws Exception {
 //        System.out.println("Default encoding: " + System.getProperty("file.encoding"));
 
@@ -83,7 +81,7 @@ public class Main {
         Directory index = FSDirectory.open(Path.of("index"));
         IndexReader reader = DirectoryReader.open(index);
         IndexSearcher searcher = new IndexSearcher(reader);
-//        System.out.println(querystr);
+        System.out.println(querystr);
         // Preprocesăm interogarea
         String preprocessedQuery = preprocessQuery(querystr, analyzer);
 //        System.out.println(preprocessedQuery);
