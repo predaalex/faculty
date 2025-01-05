@@ -53,20 +53,21 @@ public class IRSystem {
             }
             // Citim propoziția întreagă din linia de comandă folosind toate argumentele după "-query"
             String querystr = String.join(" ", args).split("-query ")[1];
-            searchDocuments(querystr);
+            System.out.println(searchDocuments(querystr));
         } else {
             System.err.println("Unknown mode. Use -index or -search.");
         }
     }
 
     // Metoda pentru indexarea documentelor
-    private static void indexDocuments(String folderPath) throws IOException, TikaException {
+    public static void indexDocuments(String folderPath) throws IOException, TikaException {
         RomanianAnalyzer analyzer = new RomanianAnalyzer();
         Directory index = FSDirectory.open(Path.of("index"));
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter writer = new IndexWriter(index, config);
 
         List<Document> documents = readDocumentsFromFolder(folderPath);
+        System.out.println("Found " + documents.size() + " documents.");
 
         for (Document doc : documents) {
             writer.addDocument(doc);
@@ -76,12 +77,12 @@ public class IRSystem {
     }
 
     // Metoda pentru căutarea documentelor
-    private static void searchDocuments(String querystr) throws IOException, ParseException {
+    public static ArrayList<String> searchDocuments(String querystr) throws IOException, ParseException {
         RomanianAnalyzer analyzer = new RomanianAnalyzer();
         Directory index = FSDirectory.open(Path.of("index"));
         IndexReader reader = DirectoryReader.open(index);
         IndexSearcher searcher = new IndexSearcher(reader);
-        System.out.println(querystr);
+//        System.out.println(querystr);
         // Preprocesăm interogarea
         String preprocessedQuery = preprocessQuery(querystr, analyzer);
 //        System.out.println(preprocessedQuery);
@@ -89,13 +90,13 @@ public class IRSystem {
         StringBuilder booleanQuery = new StringBuilder();
         for (String term : terms) {
             if (!term.isEmpty()) {
-                booleanQuery.append(term).append(" AND ");
+                booleanQuery.append(term).append(" OR ");
             }
         }
 
         // Eliminăm ultimul "AND"
         if (booleanQuery.length() > 0) {
-            booleanQuery.setLength(booleanQuery.length() - 5);
+            booleanQuery.setLength(booleanQuery.length() - 4);
         }
 
 //        System.out.println(booleanQuery);
@@ -105,13 +106,16 @@ public class IRSystem {
         // Căutăm și afișăm primele 5 rezultate
         TopDocs docs = searcher.search(q, 5);
         ScoreDoc[] hits = docs.scoreDocs;
+        ArrayList<String> result = new ArrayList<>();
 
         for (ScoreDoc hit : hits) {
             Document d = searcher.doc(hit.doc);
-            System.out.println(d.get("fileName"));
+            result.add(d.get("fileName"));
         }
 
         reader.close();
+
+        return result;
     }
 
     // Metoda pentru preprocesarea interogării
