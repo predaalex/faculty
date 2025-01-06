@@ -104,7 +104,7 @@ public class IRSystem {
 
 
         // Căutăm și afișăm primele 5 rezultate
-        TopDocs docs = searcher.search(q, 5);
+        TopDocs docs = searcher.search(q, 3);
         ScoreDoc[] hits = docs.scoreDocs;
         ArrayList<String> result = new ArrayList<>();
 
