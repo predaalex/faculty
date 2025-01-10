@@ -81,6 +81,7 @@ def text_preparetion_simple(sentence):
     return sentence
 
 
+
 sentence1 = "A World War II-era bomber flying out of formation"
 print(text_preparetion_simple(sentence1))
 
