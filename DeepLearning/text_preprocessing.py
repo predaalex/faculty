@@ -19,7 +19,7 @@ def text_preparation_with_spell_correction(sentence):
     sentence = re.sub(pattern, " ", sentence)
 
     # 3. Correct spelling
-    words = sentence.split()
+    words = nltk.word_tokenize(sentence)
     corrected_words = []
     for word in words:
         corrected_word = spell.correction(word)
@@ -44,7 +44,8 @@ def text_preparation_with_levenshtein(sentence):
     sentence = re.sub(pattern, " ", sentence)
 
     # 3. Replace words with the closest in vocabulary
-    words = sentence.split()
+    words = nltk.word_tokenize(sentence)()
+
     closest_words = [find_closest_word(word, vocabulary) for word in words]
     corrected_sentence = ' '.join(closest_words)
 
@@ -86,4 +87,4 @@ sentence1 = "A World War II-era bomber flying out of formation"
 print(text_preparetion_simple(sentence1))
 
 sentence_example = '"A domesticated carnivvorous mzammal that typicbally hfaas a lons sfnout, an acxujte sense off osmell, noneetractaaln crlaws, anid xbarkring,y howlingu, or whining rvoiche."'
-# print(text_preparation_with_spell_correction(sentence_example))
+print(text_preparation_with_spell_correction(sentence_example))
