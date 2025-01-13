@@ -326,26 +326,27 @@ ts_loader = DataLoader(ts_data, num_workers=0, batch_size=batch_size)
 model = MMNetwork(dim, dim, 1)
 
 model.to(device)
-print(model)
+# print(model)
 
 optimizer = optim.Adam(model.parameters(), init_lr, betas=(0.99, 0.98), weight_decay=1e-4)
 criterion = nn.BCELoss()
 
 num_train_steps = int(len(tr_data) / batch_size) * epochs
 num_warmup_steps = int(0.1 * num_train_steps)
-print(num_train_steps, num_warmup_steps)  ## Print Number of total and warmup steps
+# print(num_train_steps, num_warmup_steps)  ## Print Number of total and warmup steps
 # scheduler = transformers.get_linear_schedule_with_warmup(optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_train_steps)
 scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [5, 10, 15], gamma=0.5)
 # scheduler = None
 
-model_ft, best_epoch = train(model, optimizer, scheduler, num_epochs=epochs)
-
-torch.save(model_ft.state_dict(), 'saved_models/trained_model.pt')
-
-vl_loss, vl_acc, vl_f1, _, _, _, _ = evaluate(model_ft, vl_loader)
-print('Validation best epoch: %d, Val Loss: %.4f, ACC: %.2f, F1: %.2f' % (
-best_epoch, np.round(vl_loss, 4), vl_acc * 100, vl_f1 * 100))
-
-# FOR TEST DATASET :TODO MAKE TEST DATASET
-# ts_loss, ts_acc, ts_f1, _, _, _, _ = evaluate(model_ft, ts_loader)
-# print('Test results:, Test Loss: %.4f, ACC: %.2f, F1: %.2f' % (np.round(ts_loss, 4), ts_acc * 100, ts_f1 * 100))
+# TODO: uncomment to train
+# model_ft, best_epoch = train(model, optimizer, scheduler, num_epochs=epochs)
+#
+# torch.save(model_ft.state_dict(), 'saved_models/trained_model.pt')
+#
+# vl_loss, vl_acc, vl_f1, _, _, _, _ = evaluate(model_ft, vl_loader)
+# print('Validation best epoch: %d, Val Loss: %.4f, ACC: %.2f, F1: %.2f' % (
+# best_epoch, np.round(vl_loss, 4), vl_acc * 100, vl_f1 * 100))
+#
+# # FOR TEST DATASET :TODO MAKE TEST DATASET
+# # ts_loss, ts_acc, ts_f1, _, _, _, _ = evaluate(model_ft, ts_loader)
+# # print('Test results:, Test Loss: %.4f, ACC: %.2f, F1: %.2f' % (np.round(ts_loss, 4), ts_acc * 100, ts_f1 * 100))
