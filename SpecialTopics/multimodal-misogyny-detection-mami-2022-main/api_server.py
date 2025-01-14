@@ -1,3 +1,5 @@
+import base64
+
 from flask import Flask, request, jsonify
 from PIL import Image
 import io
@@ -42,14 +44,8 @@ app = Flask(__name__)
 def upload_image_and_text():
     try:
         # Check if the request contains a file
-        if 'image' not in request.files:
+        if 'image' not in request.form:
             return jsonify({'error': 'No image part in the request'}), 400
-
-        file = request.files['image']
-
-        # Check if a file was actually selected
-        if file.filename == '':
-            return jsonify({'error': 'No selected image'}), 400
 
         # Check if the request contains a text string
         if 'text' not in request.form:
@@ -60,7 +56,10 @@ def upload_image_and_text():
         text_tokens = text_tokens.unsqueeze(0).to(device)
         masks = masks.unsqueeze(0).to(device)
 
-        image = Image.open(file.stream).convert('RGB')
+        base64_image = request.form['image']
+        image_data = base64.b64decode(base64_image)
+        image = Image.open(io.BytesIO(image_data)).convert('RGB')
+
         img_input = img_transformer(image).unsqueeze(0).to(device)
 
         # Generate model response.
@@ -69,7 +68,7 @@ def upload_image_and_text():
 
         img_feats = clip_model.module.encode_image(img_input)
         txt_feats = clip_model.module.encode_text(text_tokens)
-        outputs1, outputs2, outputs3, outputs4, outputs5 = model(img_feats, txt_feats, masks)
+        outputs1, outputs2, outputs3, outputs4, outputs5 = model(img_feats, txt_feats)
 
         preds1 = (outputs1 > 0.5).int()
         preds2 = (outputs2 > 0.5).int()
