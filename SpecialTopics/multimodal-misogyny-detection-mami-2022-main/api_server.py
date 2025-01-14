@@ -1,32 +1,29 @@
 import base64
+import warnings
 
 from flask import Flask, request, jsonify
-from PIL import Image
 import io
-import torch.optim as optim
-import time
-from sklearn import metrics
 import clip
 from clip.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from helper_functions import *
-from text_normalizer import *
-import argparse
-import numpy as np
 from torch import nn
-from torch.nn import functional as F
 import torch
 from train_multitask import MMNetwork, tokenize
+
+warnings.filterwarnings("ignore", category=UserWarning)  # Disable UserWarnings
+
 
 _tokenizer = _Tokenizer()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-clip_model, _ = clip.load("ViT-L/14", jit=False)
+clip_model, _ = clip.load("RN50", jit=False)
 input_resolution = clip_model.visual.input_resolution
 clip_model.float().eval()
 clip_model = nn.DataParallel(clip_model)
 
-model = MMNetwork(768, 768, 1)
+model = MMNetwork(1024, 1024, 1)
+model.load_state_dict(torch.load("saved_models/model_resnet50.pt"))
 model.to(device)
 
 img_transformer = transforms.Compose([
