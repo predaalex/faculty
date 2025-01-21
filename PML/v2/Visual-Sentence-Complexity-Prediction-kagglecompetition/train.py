@@ -27,9 +27,9 @@ warnings.filterwarnings("ignore")
 
 tqdm.pandas()
 #%%
-train_dataset = pd.read_csv("./datasets/train.csv")
-validation_dataset = pd.read_csv("./datasets/val.csv")
-test_dataset = pd.read_csv("./datasets/test.csv")
+train_dataset = pd.read_csv("datasets/train.csv")
+validation_dataset = pd.read_csv("datasets/val.csv")
+test_dataset = pd.read_csv("datasets/test.csv")
 #%%
 train_dataset
 #%% md
