@@ -1,3 +1,4 @@
+import warnings
 import torch.optim as optim
 import time
 from sklearn import metrics
@@ -10,15 +11,16 @@ import numpy as np
 from torch import nn
 from torch.nn import functional as F
 import torch
+warnings.filterwarnings("ignore", category=UserWarning)  # Disable UserWarnings
 
 parser = argparse.ArgumentParser(description='Train Multimodal Multi-task model for Misogyny Detection')
 parser.add_argument('--bs', type=int, default=64,
                     help='64,128')
-parser.add_argument('--epochs', type=int, default=20)
+parser.add_argument('--epochs', type=int, default=10)
 parser.add_argument('--maxlen', type=int, default=77)
-parser.add_argument('--lr', type=str, default='4e-5',
+parser.add_argument('--lr', type=str, default='1e-4',
                     help='3e-5, 4e-5, 5e-5, 5e-4')
-parser.add_argument('--vmodel', type=str, default='vit14',
+parser.add_argument('--vmodel', type=str, default='rn5064',
                     help='resnet | vit32 | vit16 | vit14 | rn50 | rn101 | rn504 | rn5016 | rn5064')
 
 args = parser.parse_args()
@@ -179,7 +181,7 @@ def train(model, optimizer, lr_scheduler, num_epochs):
         print(
             'Epoch: {:d}, Val Loss: {:.4f}, Acc: {:.2f}, F1_1: {:.2f}, F1_2: {:.2f}, F1_3: {:.2f}, F1_4: {:.2f}, F1_5: {:.2f}'.format(
                 epoch, test_loss, test_acc * 100, test_f1_1 * 100, test_f1_2 * 100, \
-                test_f1_3 * 100, test_f1_4 * 100, test_f1_5 * 100))
+                                  test_f1_3 * 100, test_f1_4 * 100, test_f1_5 * 100))
 
         # deep copy the model
         if test_f1_1 >= best_f1:
@@ -302,7 +304,7 @@ transform_config = {'train': transforms.Compose([
 ## Dataset
 tr_df = pd.read_csv('data/train.tsv', sep='\t')
 vl_df = pd.read_csv('data/validation.tsv', sep='\t')
-
+ts_df = pd.read_csv("data/test.tsv", sep='\t')
 ## Find max length in training text
 # max_length = 0
 # for txt in tr_df['text']:
@@ -315,9 +317,9 @@ vl_df = pd.read_csv('data/validation.tsv', sep='\t')
 if args.maxlen != 0:
     max_length = args.maxlen
 
-tr_data = CustomDatasetFixed(tr_df, 'training', transform_config['test'], preprocess, tokenize, max_length)
+tr_data = CustomDatasetFixed(tr_df, 'training', transform_config['train'], preprocess, tokenize, max_length)
 vl_data = CustomDatasetFixed(vl_df, 'training', transform_config['test'], preprocess, tokenize, max_length)
-ts_data = CustomDatasetFixed(vl_df, 'test', transform_config['test'], preprocess, tokenize, max_length)
+ts_data = CustomDatasetFixed(ts_df, 'test', transform_config['test'], preprocess, tokenize, max_length)
 tr_loader = DataLoader(tr_data, shuffle=True, num_workers=0, batch_size=batch_size)
 vl_loader = DataLoader(vl_data, num_workers=0, batch_size=batch_size)
 ts_loader = DataLoader(ts_data, num_workers=0, batch_size=batch_size)
@@ -338,15 +340,27 @@ num_warmup_steps = int(0.1 * num_train_steps)
 scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [5, 10, 15], gamma=0.5)
 # scheduler = None
 
-# TODO: uncomment to train
+# # TODO: uncomment to train
 # model_ft, best_epoch = train(model, optimizer, scheduler, num_epochs=epochs)
 #
-# torch.save(model_ft.state_dict(), 'saved_models/trained_model.pt')
+# torch.save(model_ft.state_dict(), 'saved_models/model_resnet101.pt')
 #
-# vl_loss, vl_acc, vl_f1, _, _, _, _ = evaluate(model_ft, vl_loader)
-# print('Validation best epoch: %d, Val Loss: %.4f, ACC: %.2f, F1: %.2f' % (
-# best_epoch, np.round(vl_loss, 4), vl_acc * 100, vl_f1 * 100))
+# # Unpacking the output from the evaluate function for the validation dataset
+# vl_loss, vl_acc, val_f1_1, val_f1_2, val_f1_3, val_f1_4, val_f1_5 = evaluate(model_ft, vl_loader)
+# print('Validation Metrics: Loss: %.4f, ACC: %.2f, F1: %.2f, F2: %.2f, F3: %.2f, F4: %.2f, F5: %.2f' % (
+#     np.round(vl_loss, 4), vl_acc * 100, val_f1_1 * 100, val_f1_2 * 100, val_f1_3 * 100, val_f1_4 * 100, val_f1_5 * 100))
 #
-# # FOR TEST DATASET :TODO MAKE TEST DATASET
-# # ts_loss, ts_acc, ts_f1, _, _, _, _ = evaluate(model_ft, ts_loader)
-# # print('Test results:, Test Loss: %.4f, ACC: %.2f, F1: %.2f' % (np.round(ts_loss, 4), ts_acc * 100, ts_f1 * 100))
+#
+#
+# vl_loss, vl_acc, ts_f1_1, ts_f1_2, ts_f1_3, ts_f1_4, ts_f1_5 = evaluate(model_ft, vl_loader)
+# print('Test Metrics: Loss: %.4f, ACC: %.2f, F1: %.2f, F2: %.2f, F3: %.2f, F4: %.2f, F5: %.2f' % (
+#     np.round(vl_loss, 4), vl_acc * 100, ts_f1_1 * 100, ts_f1_2 * 100, ts_f1_3 * 100, ts_f1_4 * 100, ts_f1_5 * 100))
+# # Task A: Misogyny detection F1 score
+# task_a_f1 = ts_f1_1
+#
+# # Task B: Average F1 score for other classes
+# task_b_f1 = (ts_f1_2 + ts_f1_3 + ts_f1_4 + ts_f1_5) / 4  # Simple average
+#
+# # Print the F1 scores per task
+# print('F1 Score for Task A (Misogyny Detection): %.3f' % (task_a_f1 * 100))
+# print('F1 Score for Task B (Other Classes): %.3f' % (task_b_f1 * 100))
