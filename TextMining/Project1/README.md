@@ -31,22 +31,21 @@ Follow these steps to build, index documents, and search using the command line:
 1. **Index Documents:**
    - Run this command to index all documents from the specified folder:
      ```shell
-     java -Dfile.encoding=UTF-8 -jar target/docsearch-1.0-SNAPSHOT.jar -index -directory <path to docs>
+     java -jar target/docsearch-1.0-SNAPSHOT.jar -index -directory <path to docs>
      ```
 
 2. **Search for a Keyword or Phrase:**
    - To search for a single keyword:
      ```shell
-     java -Dfile.encoding=UTF-8 -jar target/docsearch-1.0-SNAPSHOT.jar -search -query <keyword>
+     java -jar target/docsearch-1.0-SNAPSHOT.jar -search -query <keyword>
      ```
 
    - To search for an entire phrase or sentence:
      ```shell
-     java -Dfile.encoding=UTF-8 -jar target/docsearch-1.0-SNAPSHOT.jar -search -query "<your phrase here>"
+     java -jar target/docsearch-1.0-SNAPSHOT.jar -search -query "<your phrase here>"
      ```
 
 ### Notes:
-- Use `-Dfile.encoding=UTF-8` to ensure correct handling of Romanian diacritics.
 - The `<path to docs>` should be replaced with the directory containing your documents.
 - The `<keyword>` or `<your phrase here>` should be replaced with the term or sentence you want to search for. 
 - Make sure the diacritics from string query search are utf-8 format.

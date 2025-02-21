@@ -1,9 +1,12 @@
 package org.example;
 
 import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.lucene.analysis.TokenStream;
@@ -26,11 +29,16 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
+import org.bouncycastle.util.encoders.UTF8;
 
 
 public class IRSystem {
     public static void main(String[] args) throws Exception {
-//        System.out.println("Default encoding: " + System.getProperty("file.encoding"));
+        System.setProperty("file.encoding","UTF-8");
+        System.out.println(System.getProperty("file.encoding"));
+
+        System.out.println(args[2]);
+        System.out.println(Arrays.toString(args));
 
         if (args.length < 2) {
             System.err.println("Usage: -index -directory <path to docs> or -search -query <keyword>");
@@ -84,8 +92,9 @@ public class IRSystem {
         IndexSearcher searcher = new IndexSearcher(reader);
 //        System.out.println(querystr);
         // Preprocesăm interogarea
-        String preprocessedQuery = preprocessQuery(querystr, analyzer);
-//        System.out.println(preprocessedQuery);
+        String preprocessedQuery = preprocessText(querystr);
+        System.out.println("Original Query:" + querystr);
+        System.out.println("Processed Query: " + preprocessedQuery); // DEBUG
         String[] terms = preprocessedQuery.split("\\s+");
         StringBuilder booleanQuery = new StringBuilder();
         for (String term : terms) {
@@ -118,10 +127,8 @@ public class IRSystem {
         return result;
     }
 
-    // Metoda pentru preprocesarea interogării
-    private static String preprocessQuery(String query, RomanianAnalyzer analyzer) {
-        // Eliminăm diacriticele
-        query = removeDiacritics(query);
+    private static String stemmingText(String query) {
+        RomanianAnalyzer analyzer = new RomanianAnalyzer();
 
         try {
             // Creăm un TokenStream pentru interogare
@@ -179,7 +186,7 @@ public class IRSystem {
                     try (BufferedInputStream inputStream = new BufferedInputStream(Files.newInputStream(file.toPath()))) {
                         String content = tika.parseToString(inputStream);
                         String preprocessedContent = preprocessText(content);
-
+                        System.out.println("File Name: " + file.getName() + "\nContent: " + content + "\n");
                         Document doc = new Document();
                         doc.add(new TextField("fileName", file.getName(), Field.Store.YES));
                         doc.add(new TextField("content", preprocessedContent, Field.Store.YES));
@@ -198,7 +205,10 @@ public class IRSystem {
 
     // Metoda pentru preprocesarea textului (eliminarea diacriticelor)
     private static String preprocessText(String text) {
-        return removeDiacritics(text);
+        text = removeDiacritics(text);
+        text = stemmingText(text);
+
+        return text;
     }
 
     // Verifică dacă tipul de fișier este suportat
