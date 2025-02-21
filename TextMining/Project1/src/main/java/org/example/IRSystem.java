@@ -4,10 +4,12 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.ro.RomanianAnalyzer;
@@ -183,11 +185,13 @@ public class IRSystem {
         if (folder.exists() && folder.isDirectory()) {
             for (File file : folder.listFiles()) {
                 if (file.isFile() && isSupportedFileType(file.getName())) {
-                    try (BufferedInputStream inputStream = new BufferedInputStream(Files.newInputStream(file.toPath()))) {
+                    try (InputStream inputStream = new FileInputStream(file)) {
                         String content = tika.parseToString(inputStream);
-                        String preprocessedContent = preprocessText(content);
+
                         System.out.println("File Name: " + file.getName() + "\nContent: " + content + "\n");
+                        String preprocessedContent = preprocessText(content);
                         Document doc = new Document();
+                        System.out.println(file.getAbsolutePath());
                         doc.add(new TextField("fileName", file.getName(), Field.Store.YES));
                         doc.add(new TextField("content", preprocessedContent, Field.Store.YES));
                         documents.add(doc);
