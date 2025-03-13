@@ -106,6 +106,75 @@ def bfs(board, is_bot_turn):
     return best_score, best_move
 
 
+def heuristic(board):
+    def opponent(player):
+        return HUMAN if player == BOT else BOT
+
+    def count_potential_wins(player):
+        lines = []
+
+        # Rows and columns
+        for i in range(3):
+            lines.append([board[i][j] for j in range(3)])  # Row
+            lines.append([board[j][i] for j in range(3)])  # Column
+
+        # Diagonals
+        lines.append([board[i][i] for i in range(3)])
+        lines.append([board[i][2 - i] for i in range(3)])
+
+        count = 0
+        for line in lines:
+            if line.count(player) > 0 and line.count(opponent(player)) == 0:
+                count += 1
+        return count
+
+    return count_potential_wins(BOT) - count_potential_wins(HUMAN)
+
+
+def greedy_bfs_move(board):
+    best_score = float('-inf')
+    best_move = None
+
+    for i in range(3):
+        for j in range(3):
+            if board[i][j] == EMPTY:
+                board[i][j] = BOT
+                score = heuristic(board)
+                board[i][j] = EMPTY
+
+                if score > best_score:
+                    best_score = score
+                    best_move = (i, j)
+
+    return best_score, best_move
+
+
+def hill_climb_move(board):
+    current_score = heuristic(board)
+    best_score = current_score
+    best_move = None
+
+    for i in range(3):
+        for j in range(3):
+            if board[i][j] == EMPTY:
+                board[i][j] = BOT
+                score = heuristic(board)
+                board[i][j] = EMPTY
+
+                if score > best_score:
+                    best_score = score
+                    best_move = (i, j)
+
+    # If no better move is found, pick first available to avoid being stuck
+    if not best_move:
+        for i in range(3):
+            for j in range(3):
+                if board[i][j] == EMPTY:
+                    return None, (i, j)
+
+    return best_score, best_move
+
+
 # Main game loop
 def main():
     board = create_board()
@@ -132,7 +201,11 @@ def main():
 
         # Bot move
         print("Bot is thinking...")
-        _, move = dfs(board, True)
+        # _, move = dfs(board, True)
+        # _, move = bfs(board, True)
+        # _, move = greedy_bfs_move(board)
+        _, move = hill_climb_move(board)
+
         if move:
             board[move[0]][move[1]] = BOT
             print(f"Bot plays at: {move[0]},{move[1]}")
