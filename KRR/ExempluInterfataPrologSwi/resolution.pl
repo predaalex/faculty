@@ -7,7 +7,6 @@ main([PortAtom, KbQuestionFile]) :-
     % Load file that contains kb/1 and query/1
     consult(KbQuestionFile),
 
-    % Connect to Java
     tcp_socket(Sock),
     tcp_connect(Sock, '127.0.0.1':Port),
     tcp_open_socket(Sock, In, Out),
@@ -56,14 +55,13 @@ resolution_loop(Clauses, _, Out) :-
 resolution_loop(Clauses, Processed, Out) :-
     format(Out, 'TRACE: Current clauses: ~w~n', [Clauses]),
     flush_output(Out),
-    % Generate all new resolvents from pairs of clauses
     findall(
         Resolvent,
         (
             select(C1, Clauses, Rest),
             member(C2, Rest),
             resolve_clauses(C1, C2, Resolvent, Out),
-            % Skip resolvent if we already know it
+
             \+ member(Resolvent, Clauses),
             \+ member(Resolvent, Processed)
         ),
@@ -78,9 +76,7 @@ resolution_loop(Clauses, Processed, Out) :-
     ).
 
 resolve_clauses(Clause1, Clause2, Resolvent, Out) :-
-    % Standardize variables apart by copying
     copy_term((Clause1, Clause2), (C1, C2)),
-    % Pick a literal from each and try to resolve
     select(L1, C1, Rest1),
     select(L2, C2, Rest2),
     complementary(L1, L2),
