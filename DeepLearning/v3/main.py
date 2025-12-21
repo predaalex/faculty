@@ -72,14 +72,15 @@ class SupersamplingDataset(Dataset):
         return img_id, small_tensor
 
 class ResidualBlock(nn.Module):
-    def __init__(self, channels=64):
+    def __init__(self, channels=64, residual_scale=0.1):
         super().__init__()
         self.conv1 = nn.Conv2d(channels, channels, 3, 1, 1)
         self.act   = nn.LeakyReLU(0.2, inplace=True)
         self.conv2 = nn.Conv2d(channels, channels, 3, 1, 1)
+        self.residual_scale = residual_scale
 
     def forward(self, x):
-        return x + self.conv2(self.act(self.conv1(x)))
+        return x + self.residual_scale * self.conv2(self.act(self.conv1(x)))
 
 class UpsampleBlock(nn.Module):
     """2x upsample using PixelShuffle"""
@@ -227,7 +228,6 @@ def train(epoch_num):
 
     return best_mse
 
-
 def create_submission_csv( model, test_loader, out_csv_path="submissions/submission.csv", device="cuda"):
     model.eval()
     model.to(device)
@@ -288,6 +288,7 @@ if __name__ == '__main__':
     test_df = pd.read_csv("dataset/test_input.csv")
     validation_df = pd.read_csv("dataset/validation.csv")
     batch_size = 128
+    num_workers = 6
     train_dataset = SupersamplingDataset(df=train_df, dataset_path="dataset/train/", stage="train", augment=True)
 
     validation_dataset = SupersamplingDataset( df=validation_df, dataset_path="dataset/validation/", stage="val", augment=False)
@@ -295,13 +296,13 @@ if __name__ == '__main__':
     test_dataset = SupersamplingDataset( df=test_df, dataset_path="dataset/test_input/", stage="test", augment=False)
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                  num_workers=4, pin_memory=True, persistent_workers=True
+                                  num_workers=num_workers, pin_memory=True, persistent_workers=True
                                   )
     validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False,
-                                       num_workers=4, pin_memory=True, persistent_workers=True
+                                       num_workers=num_workers, pin_memory=True, persistent_workers=True
                                        )
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False,
-                                 num_workers=4, pin_memory=True, persistent_workers=True
+                                 num_workers=num_workers, pin_memory=True, persistent_workers=True
                                  )
 
     model = SRResNet4x(num_blocks=16, channels=96, clamp_output=False).cuda()
@@ -313,12 +314,12 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     num_epochs = 300
-    step = 60
-    milestones = [milestone for milestone in range(step, num_epochs + 1, step)]
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=milestones, gamma=0.5
-    )
-
+    # step = 60
+    # milestones = [milestone for milestone in range(step, num_epochs + 1, step)]
+    # scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer, milestones=milestones, gamma=0.5
+    # )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
     scaler = torch.amp.GradScaler('cuda')
 
     print(summary(model, torch.rand(size=(batch_size, 3, 32, 32)).cuda(), show_input=True))
