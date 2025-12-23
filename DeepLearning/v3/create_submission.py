@@ -1,28 +1,16 @@
-import builtins
 import os
 import random
-import time
 
-import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
-from datetime import datetime
 from PIL import Image
-from pytorch_model_summary import summary
-from pytorch_msssim import ssim
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torchvision import transforms
-import torch.multiprocessing as mp
 
-torch.manual_seed(0)
-np.random.seed(0)
-random.seed(0)
-torch.cuda.manual_seed_all(0)
-torch.backends.cudnn.benchmark = True  # speed
 
 class SupersamplingDataset(Dataset):
     def __init__(self, df, dataset_path, stage="train", augment=True):
@@ -211,104 +199,6 @@ class EMA:
     def apply_to(self, model):
         model.load_state_dict(self.shadow, strict=True)
 
-def print(*args, **kwargs):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    builtins.print(f"[{timestamp}] ", *args, **kwargs)
-
-def get_timestamp():
-    return str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-def psnr(pred, target, eps=1e-10):
-    """
-    pred, target: (B, C, H, W) in [0,1]
-    returns: average PSNR over batch (float)
-    """
-    mse = torch.mean((pred - target) ** 2, dim=(1, 2, 3))  # (B,)
-    mse = torch.clamp(mse, min=eps)
-    psnr = 10.0 * torch.log10(1.0 / mse)
-    return psnr.mean().item()
-
-def train(epoch_num):
-    patience = 10
-    min_delta = 1e-7
-    epochs_no_improve = 0
-    best_mse = np.inf
-    ema = EMA(model)
-
-    for epoch in range(epoch_num):
-        start_time = time.time()
-        model.train()
-
-        for ids, lr, hr in train_dataloader:
-            lr = lr.cuda(non_blocking=True)
-            hr = hr.cuda(non_blocking=True)
-
-            optimizer.zero_grad(set_to_none=True)
-
-            with torch.amp.autocast('cuda'):
-                pred = model(lr)
-                loss = criterion(pred, hr)
-
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            scaler.step(optimizer)
-            ema.update(model)
-            scaler.update()
-
-        scheduler.step()
-
-        # ----- validation using EMA weights -----
-        model.eval()
-        backup = {k: v.detach().clone() for k, v in model.state_dict().items()}
-        ema.apply_to(model)
-
-        val_mse = 0.0
-        val_psnr = 0.0
-        val_ssim = 0.0
-        n = 0
-
-        with torch.no_grad():
-            for ids, lr, hr in validation_dataloader:
-                lr = lr.cuda(non_blocking=True)
-                hr = hr.cuda(non_blocking=True)
-
-                pred = model(lr).clamp(0, 1)
-
-                bs = lr.size(0)
-                val_mse += criterion(pred, hr).item() * bs
-                val_psnr += psnr(pred, hr) * bs
-                val_ssim += ssim(pred, hr, data_range=1.0, size_average=True).item() * bs
-                n += bs
-
-        val_mse /= n
-        val_psnr /= n
-        val_ssim /= n
-
-        # restore non-EMA weights for next epoch training
-        model.load_state_dict(backup, strict=True)
-
-        end_time = time.time()
-        if val_mse < best_mse - min_delta:
-            best_mse = val_mse
-            epochs_no_improve = 0
-            torch.save(ema.shadow, f"best_ema.pth")
-        else:
-            epochs_no_improve += 1
-            if epochs_no_improve >= patience:
-                print(f"Early stopping at epoch {epoch + 1}. Best MSE: {best_mse:.6f}")
-                break
-        print(
-            f"epoch {epoch + 1:3d}/{epoch_num:3d} | "
-            f"MSE {val_mse:8.6f} | "
-            f"PSNR {val_psnr:6.2f} dB | "
-            f"SSIM {val_ssim:7.4f} | "
-            f"time {end_time - start_time:5.1f} s | "
-            f"lr {scheduler.get_last_lr()[0]:.1e}"
-        )
-
-    return best_mse
-
 def _apply_t(x: torch.Tensor, k: int) -> torch.Tensor:
     """
     Apply one of 8 transforms to a BCHW tensor.
@@ -404,49 +294,23 @@ def create_submission_csv(model, test_loader, out_csv_path="submissions/submissi
     df.to_csv(out_csv_path, index=False)
     print(f"Saved submission to {out_csv_path} with shape {df.shape}")
 
-if __name__ == '__main__':
-    mp.freeze_support()
-
-    batch_size = 32
+if __name__ == "__main__":
+    batch_size = 64
     num_workers = 4
-    num_epochs = 120
 
-    train_df = pd.read_csv("dataset/train.csv")
     test_df = pd.read_csv("dataset/test_input.csv")
-    validation_df = pd.read_csv("dataset/validation.csv")
-    train_dataset = SupersamplingDataset(df=train_df, dataset_path="dataset/train/", stage="train", augment=True)
-    validation_dataset = SupersamplingDataset( df=validation_df, dataset_path="dataset/validation/", stage="val", augment=False)
-    test_dataset = SupersamplingDataset( df=test_df, dataset_path="dataset/test_input/", stage="test", augment=False)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                  num_workers=num_workers, pin_memory=True, persistent_workers=True)
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False,
-                                       num_workers=num_workers, pin_memory=True, persistent_workers=True)
+    test_dataset = SupersamplingDataset(df=test_df, dataset_path="dataset/test_input/", stage="test", augment=False)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False,
-                                 num_workers=num_workers, pin_memory=True, persistent_workers=True)
+                                 num_workers=num_workers, pin_memory=True, persistent_workers=True
+                                 )
 
     # model = SRResNet4x(num_blocks=24, channels=320, clamp_output=False).cuda()
-    model = SRAttentionResNet4x(num_blocks=24, channels=356, residual_scale=0.1, reduction=16, clamp_output=False).cuda()
-    print(summary(model, torch.rand(size=(batch_size, 3, 32, 32)).cuda(), show_input=True))
+    model = SRAttentionResNet4x(num_blocks=24, channels=356, residual_scale=0.1, reduction=16,
+                                clamp_output=False).cuda()
 
-    nn.init.zeros_(model.conv_out.weight)
-    if model.conv_out.bias is not None:
-        nn.init.zeros_(model.conv_out.bias)
-
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, betas=(0.9, 0.99))
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-7)
-    scaler = torch.amp.GradScaler('cuda')
-
-    print("STARTED TRAINING")
-    best_mse = train(epoch_num=num_epochs)
-    print("FINISHED TRAINING")
-
-    print("CREATING SUBMISSION CSV")
     create_submission_csv(
         model=model,
         test_loader=test_dataloader,
-        out_csv_path=f"submissions/submission12-{best_mse:8.6f}.csv",
+        out_csv_path=f"submissions/submission11- 0.005180.csv", # TODO: change path
         device="cuda"
     )
-    print("FINISHED")
-    exit(0)
