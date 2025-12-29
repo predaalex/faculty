@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 from datetime import datetime
+
+import wandb
 from PIL import Image
 from pytorch_model_summary import summary
 from pytorch_msssim import ssim
@@ -228,17 +230,24 @@ def psnr(pred, target, eps=1e-10):
     psnr = 10.0 * torch.log10(1.0 / mse)
     return psnr.mean().item()
 
-def train(epoch_num):
+def train(epoch_num, run=None):
     patience = 10
     min_delta = 1e-7
     epochs_no_improve = 0
     best_mse = np.inf
+
     ema = EMA(model)
+
+    global_step = 0
 
     for epoch in range(epoch_num):
         start_time = time.time()
         model.train()
 
+        train_loss_sum = 0.0
+        train_n = 0
+
+        # ---- train ----
         for ids, lr, hr in train_dataloader:
             lr = lr.cuda(non_blocking=True)
             hr = hr.cuda(non_blocking=True)
@@ -251,14 +260,31 @@ def train(epoch_num):
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
             scaler.step(optimizer)
             ema.update(model)
             scaler.update()
 
+            bs = lr.size(0)
+            train_loss_sum += loss.item() * bs
+            train_n += bs
+
+            # optional: log a few step-level stats (keeps charts smooth)
+            if run is not None and (global_step % 50 == 0):
+                wandb.log({
+                    "train/step_mse": loss.item(),
+                    "train/grad_norm": float(grad_norm),
+                }, step=global_step)
+
+            global_step += 1
+
         scheduler.step()
 
-        # ----- validation using EMA weights -----
+        train_mse = train_loss_sum / max(train_n, 1)
+
+        # ---- validation on EMA weights ----
         model.eval()
         backup = {k: v.detach().clone() for k, v in model.state_dict().items()}
         ema.apply_to(model)
@@ -285,27 +311,45 @@ def train(epoch_num):
         val_psnr /= n
         val_ssim /= n
 
-        # restore non-EMA weights for next epoch training
+        # restore non-EMA weights
         model.load_state_dict(backup, strict=True)
 
         end_time = time.time()
-        if val_mse < best_mse - min_delta:
+        lr_now = scheduler.get_last_lr()[0]
+
+        improved = val_mse < best_mse - min_delta
+        if improved:
             best_mse = val_mse
             epochs_no_improve = 0
-            torch.save(ema.shadow, f"best_ema.pth")
+            torch.save(ema.shadow, "best_ema.pth")
         else:
             epochs_no_improve += 1
-            if epochs_no_improve >= patience:
-                print(f"Early stopping at epoch {epoch + 1}. Best MSE: {best_mse:.6f}")
-                break
+
+        # ---- wandb epoch logging ----
+        if run is not None:
+            wandb.log({
+                "epoch": epoch + 1,
+                "lr": lr_now,
+                "time/epoch_sec": end_time - start_time,
+                "train/mse": train_mse,
+                "val/mse": val_mse,
+                "val/psnr": val_psnr,
+                "val/ssim": val_ssim,
+            }, step=global_step)
+
         print(
             f"epoch {epoch + 1:3d}/{epoch_num:3d} | "
-            f"MSE {val_mse:8.6f} | "
+            f"train_mse {train_mse:8.6f} | "
+            f"val_mse {val_mse:8.6f} | "
             f"PSNR {val_psnr:6.2f} dB | "
             f"SSIM {val_ssim:7.4f} | "
             f"time {end_time - start_time:5.1f} s | "
-            f"lr {scheduler.get_last_lr()[0]:.1e}"
+            f"lr {lr_now:.1e}"
         )
+
+        if epochs_no_improve >= patience:
+            print(f"Early stopping at epoch {epoch + 1}. Best MSE: {best_mse:.6f}")
+            break
 
     return best_mse
 
@@ -404,28 +448,38 @@ def create_submission_csv(model, test_loader, out_csv_path="submissions/submissi
     df.to_csv(out_csv_path, index=False)
     print(f"Saved submission to {out_csv_path} with shape {df.shape}")
 
-if __name__ == '__main__':
-    mp.freeze_support()
+def main_run(config):
+    global model, criterion, optimizer, scheduler, scaler
+    global train_dataloader, validation_dataloader, test_dataloader
 
-    batch_size = 32
-    num_workers = 4
-    num_epochs = 120
+    # ---- wandb init ----
+    run = wandb.init(
+        project="DeepLearning-v3",
+        name=config["run_name"],
+        config=config
+    )
 
-    train_df = pd.read_csv("dataset/train.csv")
-    test_df = pd.read_csv("dataset/test_input.csv")
-    validation_df = pd.read_csv("dataset/validation.csv")
-    train_dataset = SupersamplingDataset(df=train_df, dataset_path="dataset/train/", stage="train", augment=True)
-    validation_dataset = SupersamplingDataset( df=validation_df, dataset_path="dataset/validation/", stage="val", augment=False)
-    test_dataset = SupersamplingDataset( df=test_df, dataset_path="dataset/test_input/", stage="test", augment=False)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                  num_workers=num_workers, pin_memory=True, persistent_workers=True)
-    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False,
-                                       num_workers=num_workers, pin_memory=True, persistent_workers=True)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False,
-                                 num_workers=num_workers, pin_memory=True, persistent_workers=True)
+    # Optional: log gradients/params (can slow on big nets)
+    # wandb.watch(model, log="gradients", log_freq=200)
 
-    # model = SRResNet4x(num_blocks=24, channels=320, clamp_output=False).cuda()
-    model = SRAttentionResNet4x(num_blocks=24, channels=356, residual_scale=0.1, reduction=16, clamp_output=False).cuda()
+    # ---- build model ----
+    if config["model_type"] == "plain":
+        model = SRResNet4x(
+            num_blocks=config["num_blocks"],
+            channels=config["channels"],
+            clamp_output=False
+        ).cuda()
+    elif config["model_type"] == "attn":
+        model = SRAttentionResNet4x(
+            num_blocks=config["num_blocks"],
+            channels=config["channels"],
+            residual_scale=config["residual_scale"],
+            reduction=config["reduction"],
+            clamp_output=False
+        ).cuda()
+    else:
+        raise ValueError("Unknown model_type")
+
     print(summary(model, torch.rand(size=(batch_size, 3, 32, 32)).cuda(), show_input=True))
 
     nn.init.zeros_(model.conv_out.weight)
@@ -433,20 +487,79 @@ if __name__ == '__main__':
         nn.init.zeros_(model.conv_out.bias)
 
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, betas=(0.9, 0.99))
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-7)
+
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=config["lr"],
+        weight_decay=config.get("weight_decay", 0.0)
+    )
+
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=config["num_epochs"],
+        eta_min=config["eta_min"]
+    )
+
     scaler = torch.amp.GradScaler('cuda')
 
     print("STARTED TRAINING")
-    best_mse = train(epoch_num=num_epochs)
+    best_mse = train(epoch_num=config["num_epochs"], run=run)
     print("FINISHED TRAINING")
 
+    # Save best as artifact (optional)
+    artifact = wandb.Artifact(f"best_ema_{config['run_name']}", type="model")
+    artifact.add_file("best_ema.pth")
+    run.log_artifact(artifact)
+
+    # Make submission (logs best_mse into filename)
     print("CREATING SUBMISSION CSV")
-    create_submission_csv(
-        model=model,
-        test_loader=test_dataloader,
-        out_csv_path=f"submissions/submission12-{best_mse:8.6f}.csv",
-        device="cuda"
-    )
-    print("FINISHED")
-    exit(0)
+    out_path = f"submissions/submission-{config['run_name']}-{best_mse:8.6f}.csv"
+    create_submission_csv(model=model, test_loader=test_dataloader, out_csv_path=out_path, device="cuda")
+
+    run.finish()
+    return best_mse
+
+
+if __name__ == '__main__':
+    mp.freeze_support()
+
+    with open("api_key.txt", "r") as f:
+        api_key = f.readline().strip()
+        wandb.login(api_key)
+
+    batch_size = 16
+    num_workers = 8
+    train_df = pd.read_csv("dataset/train.csv")
+    test_df = pd.read_csv("dataset/test_input.csv")
+    validation_df = pd.read_csv("dataset/validation.csv")
+    train_dataset = SupersamplingDataset(df=train_df, dataset_path="dataset/train/", stage="train", augment=True)
+    validation_dataset = SupersamplingDataset( df=validation_df, dataset_path="dataset/validation/", stage="val", augment=False)
+    test_dataset = SupersamplingDataset( df=test_df, dataset_path="dataset/test_input/", stage="test", augment=False)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, persistent_workers=True)
+    validation_dataloader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, persistent_workers=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, persistent_workers=True)
+
+
+    sweep = [
+        {"run_name":  "plain_b8_c896", "model_type": "plain", "num_blocks": 8,  "channels": 896},
+        {"run_name": "plain_b16_c896", "model_type": "plain", "num_blocks": 16, "channels": 896},
+        {"run_name": "plain_b24_c896", "model_type": "plain", "num_blocks": 24, "channels": 896},
+
+        # {"run_name":  "attn_b8_c896", "model_type": "attn", "num_blocks": 8,  "channels": 612, "residual_scale": 0.1, "reduction": 1},
+        # {"run_name": "attn_b16_c612", "model_type": "attn", "num_blocks": 16, "channels": 612, "residual_scale": 0.1, "reduction": 1},
+        # {"run_name": "attn_b24_c612", "model_type": "attn", "num_blocks": 24, "channels": 612, "residual_scale": 0.1, "reduction": 1},
+    ]
+
+    base = {
+        "batch_size": batch_size,
+        "num_workers": num_workers,
+        "num_epochs": 75,
+        "lr": 1e-4,
+        "eta_min": 1e-7,
+        "weight_decay": 0.0,
+    }
+
+    for cfg in sweep:
+        config = {**base, **cfg}
+        best_mse = main_run(config)
+        print("DONE. Best EMA val MSE:", best_mse)
