@@ -2,3 +2,5 @@ models
 dataset
 submissions
 api_key.txt
+wandb
+*.pth

@@ -73,152 +73,97 @@ class SupersamplingDataset(Dataset):
         small_tensor = self.to_tensor(small_image)
         return img_id, small_tensor
 
-class SEBlock(nn.Module):
-    def __init__(self, channels: int, reduction: int = 16):
-        super().__init__()
-        reduced = max(channels // reduction, 4)
-        self.pool = nn.AdaptiveAvgPool2d(1)
-        self.fc1 = nn.Conv2d(channels, reduced, kernel_size=1)
-        self.act = nn.ReLU(inplace=True)
-        self.fc2 = nn.Conv2d(reduced, channels, kernel_size=1)
-        self.gate = nn.Sigmoid()
-
-    def forward(self, x):
-        w = self.pool(x)
-        w = self.fc2(self.act(self.fc1(w)))
-        return x * self.gate(w)
-
-class RCAB(nn.Module):
-    def __init__(self, channels: int, residual_scale: float = 0.1, reduction: int = 16):
-        super().__init__()
-        self.residual_scale = residual_scale
-        self.conv1 = nn.Conv2d(channels, channels, 3, 1, 1)
-        self.act   = nn.ReLU(inplace=True)  # ReLU is typical for PSNR/MSE SR
-        self.conv2 = nn.Conv2d(channels, channels, 3, 1, 1)
-        self.ca    = SEBlock(channels, reduction=reduction)
-
-    def forward(self, x):
-        res = self.conv2(self.act(self.conv1(x)))
-        res = self.ca(res)
-        return x + self.residual_scale * res
 
 class ResidualBlock(nn.Module):
     def __init__(self, channels=64, residual_scale=0.1):
         super().__init__()
-        self.conv1 = nn.Conv2d(channels, channels, 3, 1, 1)
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.act   = nn.LeakyReLU(0.2, inplace=True)
-        self.conv2 = nn.Conv2d(channels, channels, 3, 1, 1)
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.residual_scale = residual_scale
 
     def forward(self, x):
-        return x + self.residual_scale * self.conv2(self.act(self.conv1(x)))
+        # x: (B, C, H, W)
+        res = self.conv2(self.act(self.conv1(x)))  # (B, C, H, W)
+        return x + self.residual_scale * res       # (B, C, H, W)
 
-class UpsampleBlock(nn.Module):
-    """2x upsample using PixelShuffle"""
-    def __init__(self, in_channels=64):
+
+class UpsampleBlockSimple(nn.Module):
+    def __init__(self, channels=64, mode="nearest"):
         super().__init__()
-        self.conv = nn.Conv2d(in_channels, in_channels * 4, 3, 1, 1)
-        self.ps   = nn.PixelShuffle(2)
+        self.mode = mode
+        self.conv = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
         self.act  = nn.LeakyReLU(0.2, inplace=True)
 
     def forward(self, x):
-        return self.act(self.ps(self.conv(x)))
+        # Step 1: upsample spatially (channels stay the same)
+        # (B, C, H, W) -> (B, C, 2H, 2W)
+        x = F.interpolate(x, scale_factor=2, mode=self.mode)
 
-class SRResNet4x(nn.Module):
-    def __init__(self, num_blocks=12, channels=64, clamp_output=False):
+        # Step 2: conv refinement
+        # (B, C, 2H, 2W) -> (B, C, 2H, 2W)
+        return self.act(self.conv(x))
+
+
+class SRNet4x(nn.Module):
+    def __init__(self, num_blocks=12, channels=64, residual_scale=0.1, clamp_output=False):
         super().__init__()
         self.clamp_output = clamp_output
 
-        self.conv_in = nn.Conv2d(3, channels, 3, 1, 1)
+        # 1) Feature extraction: (B, 3, 32, 32) -> (B, C, 32, 32)
+        self.conv_in = nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1)
         self.act     = nn.LeakyReLU(0.2, inplace=True)
 
-        self.blocks  = nn.Sequential(*[ResidualBlock(channels) for _ in range(num_blocks)])
-        self.conv_mid = nn.Conv2d(channels, channels, 3, 1, 1)
-
-        self.up1 = UpsampleBlock(channels)  # 2x
-        self.up2 = UpsampleBlock(channels)  # 4x total
-
-        self.conv_out = nn.Conv2d(channels, 3, 3, 1, 1)
-
-    def forward(self, lr):
-        # bicubic skip
-        base = F.interpolate(lr, scale_factor=4, mode="bicubic", align_corners=False)
-
-        x = self.act(self.conv_in(lr))
-        res = x
-        x = self.blocks(x)
-        x = self.conv_mid(x) + res
-
-        x = self.up1(x)
-        x = self.up2(x)
-        x = self.conv_out(x)
-
-        out = base + x  # residual learning
-
-        if self.clamp_output:
-            out = out.clamp(0.0, 1.0)
-        return out
-
-class SRAttentionResNet4x(nn.Module):
-    def __init__(self, num_blocks=24, channels=320, residual_scale=0.1, clamp_output=False, reduction=16):
-        super().__init__()
-        self.clamp_output = clamp_output
-        self.residual_scale = residual_scale
-
-        self.conv_in = nn.Conv2d(3, channels, 3, 1, 1)
-        self.act     = nn.ReLU(inplace=True)  # you can keep this, or switch to ReLU
-
+        # 2) Deep feature processing at the SAME resolution:
+        #    (B, C, 32, 32) -> (B, C, 32, 32)
         self.blocks = nn.Sequential(*[
-            RCAB(channels, residual_scale=residual_scale, reduction=reduction)
+            ResidualBlock(channels, residual_scale=residual_scale)
             for _ in range(num_blocks)
         ])
-        self.conv_mid = nn.Conv2d(channels, channels, 3, 1, 1)
+        self.conv_mid = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
 
-        self.up1 = UpsampleBlock(channels)
-        self.up2 = UpsampleBlock(channels)
-        self.conv_out = nn.Conv2d(channels, 3, 3, 1, 1)
+        # 3) Upsampling from 32 -> 64 -> 128:
+        #    (B, C, 32, 32) -> (B, C, 64, 64) -> (B, C, 128, 128)
+        self.up1 = UpsampleBlockSimple(channels, mode="nearest")
+        self.up2 = UpsampleBlockSimple(channels, mode="nearest")
+
+        # 4) Output RGB prediction: (B, C, 128, 128) -> (B, 3, 128, 128)
+        self.conv_out = nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
 
     def forward(self, lr):
-        base = F.interpolate(lr, scale_factor=4, mode="bicubic", align_corners=False)
+        # lr: (B, 3, 32, 32)
 
-        x = self.act(self.conv_in(lr))
-        trunk_in = x
+        # Feature extraction
+        x = self.act(self.conv_in(lr))    # (B, C, 32, 32)
 
-        x = self.blocks(x)
-        x = self.conv_mid(x)
+        # Residual trunk (keeps same shape)
+        skip = x                          # (B, C, 32, 32)
+        x = self.blocks(x)                # (B, C, 32, 32)
+        x = self.conv_mid(x)              # (B, C, 32, 32)
+        x = x + skip                      # (B, C, 32, 32)
 
-        # trunk residual scaling (important when wide/deep)
-        x = trunk_in + self.residual_scale * x
+        # Upsampling stages
+        x = self.up1(x)                   # (B, C, 64, 64)
+        x = self.up2(x)                   # (B, C, 128, 128)
 
-        x = self.up1(x)
-        x = self.up2(x)
-        x = self.conv_out(x)
+        # Predict SR RGB image
+        out = self.conv_out(x)            # (B, 3, 128, 128)
 
-        out = base + x
+        # Optional clamp for safety at inference
         if self.clamp_output:
             out = out.clamp(0.0, 1.0)
+
         return out
 
-class EMA:
-    def __init__(self, model, decay=0.999):
-        self.decay = decay
-        self.shadow = {k: v.detach().clone() for k, v in model.state_dict().items()}
-
-    @torch.no_grad()
-    def update(self, model):
-        msd = model.state_dict()
-        for k in self.shadow.keys():
-            self.shadow[k].mul_(self.decay).add_(msd[k], alpha=1.0 - self.decay)
-
-    def apply_to(self, model):
-        model.load_state_dict(self.shadow, strict=True)
 
 def print(*args, **kwargs):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     builtins.print(f"[{timestamp}] ", *args, **kwargs)
 
+
 def get_timestamp():
     return str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
 
 def psnr(pred, target, eps=1e-10):
     """
@@ -230,13 +175,12 @@ def psnr(pred, target, eps=1e-10):
     psnr = 10.0 * torch.log10(1.0 / mse)
     return psnr.mean().item()
 
+
 def train(epoch_num, run=None):
     patience = 10
     min_delta = 1e-7
     epochs_no_improve = 0
     best_mse = np.inf
-
-    ema = EMA(model)
 
     global_step = 0
 
@@ -260,18 +204,15 @@ def train(epoch_num, run=None):
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
-
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
 
             scaler.step(optimizer)
-            ema.update(model)
             scaler.update()
 
             bs = lr.size(0)
             train_loss_sum += loss.item() * bs
             train_n += bs
 
-            # optional: log a few step-level stats (keeps charts smooth)
             if run is not None and (global_step % 50 == 0):
                 wandb.log({
                     "train/step_mse": loss.item(),
@@ -281,14 +222,10 @@ def train(epoch_num, run=None):
             global_step += 1
 
         scheduler.step()
-
         train_mse = train_loss_sum / max(train_n, 1)
 
-        # ---- validation on EMA weights ----
+        # ---- validation ----
         model.eval()
-        backup = {k: v.detach().clone() for k, v in model.state_dict().items()}
-        ema.apply_to(model)
-
         val_mse = 0.0
         val_psnr = 0.0
         val_ssim = 0.0
@@ -311,17 +248,14 @@ def train(epoch_num, run=None):
         val_psnr /= n
         val_ssim /= n
 
-        # restore non-EMA weights
-        model.load_state_dict(backup, strict=True)
-
         end_time = time.time()
         lr_now = scheduler.get_last_lr()[0]
 
-        improved = val_mse < best_mse - min_delta
-        if improved:
+        # ---- checkpoint / early stopping ----
+        if val_mse < best_mse - min_delta:
             best_mse = val_mse
             epochs_no_improve = 0
-            torch.save(ema.shadow, "best_ema.pth")
+            torch.save(model.state_dict(), "best_model.pth")  # <--- save state_dict
         else:
             epochs_no_improve += 1
 
@@ -353,58 +287,12 @@ def train(epoch_num, run=None):
 
     return best_mse
 
-def _apply_t(x: torch.Tensor, k: int) -> torch.Tensor:
-    """
-    Apply one of 8 transforms to a BCHW tensor.
-    k in [0..7]:
-      - rot = k % 4  (0, 90, 180, 270)
-      - if k >= 4: horizontal flip
-    """
-    # Horizontal flip (W axis)
-    if k >= 4:
-        x = torch.flip(x, dims=[3])
 
-    # Rotate on (H, W)
-    rot = k % 4
-    if rot != 0:
-        x = torch.rot90(x, k=rot, dims=[2, 3])
+def create_submission_csv(model, test_loader, out_csv_path="submissions/submission.csv", device="cuda", weights_path="best_model.pth"):
+    # Load weights
+    state = torch.load(weights_path, map_location=device)
+    model.load_state_dict(state, strict=True)
 
-    return x
-
-def _invert_t(y: torch.Tensor, k: int) -> torch.Tensor:
-    """Invert the transform applied by _apply_t."""
-    rot = k % 4
-    if rot != 0:
-        y = torch.rot90(y, k=4 - rot, dims=[2, 3])
-
-    if k >= 4:
-        y = torch.flip(y, dims=[3])
-
-    return y
-
-@torch.no_grad()
-def self_ensemble_sr(model: torch.nn.Module, lr_imgs: torch.Tensor) -> torch.Tensor:
-    """
-    x8 self-ensemble:
-      average_{k=0..7} inv_t( model( apply_t(lr, k) ), k )
-    """
-    preds = []
-    for k in range(8):
-        inp = _apply_t(lr_imgs, k)
-        out = model(inp)
-        out = _invert_t(out, k)
-        preds.append(out)
-    return torch.stack(preds, dim=0).mean(dim=0)
-
-def create_submission_csv(model, test_loader, out_csv_path="submissions/submission.csv", device="cuda"):
-    """
-    Creates Kaggle submission:
-      id,pixel_0,...,pixel_49151
-    where pixels are uint8 0..255 in row-major order with RGB consecutive.
-
-    Uses best EMA weights (best_ema.pth) and x8 self-ensemble by default.
-    """
-    model.load_state_dict(torch.load("best_ema.pth", map_location=device), strict=True)
     model.to(device)
     model.eval()
 
@@ -415,38 +303,36 @@ def create_submission_csv(model, test_loader, out_csv_path="submissions/submissi
 
     with torch.no_grad():
         for batch in test_loader:
-            if len(batch) == 2:
-                ids, lr_imgs = batch
-            elif len(batch) == 3:
-                ids, lr_imgs, _ = batch
-            else:
-                raise ValueError("Unexpected batch format from test_loader")
+            # batch can be (ids, lr) or (ids, lr, hr/anything)
+            ids, lr_imgs = batch[0], batch[1]
 
-            lr_imgs = lr_imgs.to(device, non_blocking=True)  # (B,3,32,32)
+            lr_imgs = lr_imgs.to(device, non_blocking=True)   # (B,3,32,32)
 
-            # ---- x8 self-ensemble SR ----
-            sr_imgs = self_ensemble_sr(model, lr_imgs)       # (B,3,128,128)
+            # Single forward pass
+            sr_imgs = model(lr_imgs)                          # (B,3,128,128)
 
-            # Clamp and convert to uint8 pixels
+            # Clamp -> uint8
             sr_imgs = sr_imgs.clamp(0.0, 1.0)
             sr_uint8 = (sr_imgs * 255.0).round().clamp(0, 255).to(torch.uint8)  # (B,3,128,128)
 
-            # Flatten in correct order: (H,W,C) row-major, RGB consecutive
+            # Flatten in row-major order with RGB consecutive: (H,W,C)
             flat = (
-                sr_uint8.permute(0, 2, 3, 1)                 # (B,128,128,3)
-                       .reshape(sr_uint8.size(0), -1)        # (B,49152)
-                       .cpu()
-                       .numpy()
+                sr_uint8.permute(0, 2, 3, 1)   # (B,128,128,3)
+                        .reshape(sr_uint8.size(0), -1)  # (B,49152)
+                        .cpu()
+                        .numpy()
             )
 
             for i in range(flat.shape[0]):
-                img_id = int(ids[i])
-                all_rows.append([img_id] + flat[i].tolist())
+                all_rows.append([int(ids[i])] + flat[i].tolist())
 
     columns = ["id"] + [f"pixel_{i}" for i in range(num_pixels)]
-    df = pd.DataFrame(all_rows, columns=columns).sort_values("id").reset_index(drop=True)
+    df = pd.DataFrame(all_rows, columns=columns)
+    df = df.sort_values("id").reset_index(drop=True)
     df.to_csv(out_csv_path, index=False)
+
     print(f"Saved submission to {out_csv_path} with shape {df.shape}")
+
 
 def main_run(config):
     global model, criterion, optimizer, scheduler, scaler
@@ -459,24 +345,19 @@ def main_run(config):
         config=config
     )
 
-    # Optional: log gradients/params (can slow on big nets)
-    # wandb.watch(model, log="gradients", log_freq=200)
-
     # ---- build model ----
     if config["model_type"] == "plain":
-        model = SRResNet4x(
+        model = SRNet4x(
             num_blocks=config["num_blocks"],
             channels=config["channels"],
             clamp_output=False
         ).cuda()
-    elif config["model_type"] == "attn":
-        model = SRAttentionResNet4x(
-            num_blocks=config["num_blocks"],
-            channels=config["channels"],
-            residual_scale=config["residual_scale"],
-            reduction=config["reduction"],
-            clamp_output=False
-        ).cuda()
+    elif config["model_type"] == "Linear Layers":
+        ValueError("add model type") # TODO: add LinearMdel
+        # model = LinearModel(
+        #
+        # )
+
     else:
         raise ValueError("Unknown model_type")
 
@@ -506,9 +387,9 @@ def main_run(config):
     best_mse = train(epoch_num=config["num_epochs"], run=run)
     print("FINISHED TRAINING")
 
-    # Save best as artifact (optional)
-    artifact = wandb.Artifact(f"best_ema_{config['run_name']}", type="model")
-    artifact.add_file("best_ema.pth")
+    # Save best as artifact
+    artifact = wandb.Artifact(f"best_model_{config['run_name']}", type="model")
+    artifact.add_file("best_model.pth")
     run.log_artifact(artifact)
 
     # Make submission (logs best_mse into filename)
@@ -541,13 +422,15 @@ if __name__ == '__main__':
 
 
     sweep = [
-        {"run_name":  "plain_b8_c896", "model_type": "plain", "num_blocks": 8,  "channels": 896},
-        {"run_name": "plain_b16_c896", "model_type": "plain", "num_blocks": 16, "channels": 896},
-        {"run_name": "plain_b24_c896", "model_type": "plain", "num_blocks": 24, "channels": 896},
+        # --- 75-epoch cosine ---
+        {"run_name": "plain_b24_c712_lr3e-5_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 3e-5, "num_epochs": 75},
+        {"run_name": "plain_b24_c712_lr5e-5_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 5e-5, "num_epochs": 75},
+         {"run_name": "plain_b24_c712_lr1e-4_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 1e-4, "num_epochs": 75},
 
-        # {"run_name":  "attn_b8_c896", "model_type": "attn", "num_blocks": 8,  "channels": 612, "residual_scale": 0.1, "reduction": 1},
-        # {"run_name": "attn_b16_c612", "model_type": "attn", "num_blocks": 16, "channels": 612, "residual_scale": 0.1, "reduction": 1},
-        # {"run_name": "attn_b24_c612", "model_type": "attn", "num_blocks": 24, "channels": 612, "residual_scale": 0.1, "reduction": 1},
+        # --- 100-epoch cosine ---
+        {"run_name": "plain_b24_c712_lr3e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 3e-5, "num_epochs": 100},
+        {"run_name": "plain_b24_c712_lr5e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 5e-5, "num_epochs": 100},
+        {"run_name": "plain_b24_c712_lr7e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 7.5e-5, "num_epochs": 100},
     ]
 
     base = {
@@ -555,11 +438,11 @@ if __name__ == '__main__':
         "num_workers": num_workers,
         "num_epochs": 75,
         "lr": 1e-4,
-        "eta_min": 1e-7,
+        "eta_min": 1e-6,
         "weight_decay": 0.0,
     }
 
     for cfg in sweep:
         config = {**base, **cfg}
         best_mse = main_run(config)
-        print("DONE. Best EMA val MSE:", best_mse)
+        print("DONE. Best val MSE:", best_mse)
