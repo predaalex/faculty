@@ -74,115 +74,98 @@ class SupersamplingDataset(Dataset):
         return img_id, small_tensor
 
 
+def conv_layer(in_channels, out_channels, kernel_size=3, stride=1, padding=1):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding),
+        nn.ReLU(inplace=True),
+    )
+
 class BicubicRefiner(nn.Module):
-    def __init__(self, channels=64, blocks=5, clamp_output=False):
+    def __init__(self, num_channels, num_blocks):
         super().__init__()
-        self.clamp_output = clamp_output
-
         layers = []
-        layers.append(nn.Conv2d(3, channels, 3, 1, 1))
-        layers.append(nn.ReLU(inplace=True))
 
-        for _ in range(blocks - 2):
-            layers.append(nn.Conv2d(channels, channels, 3, 1, 1))
-            layers.append(nn.ReLU(inplace=True))
+        # Feature extraction on HR images
+        layers.append(conv_layer(3, num_channels, kernel_size=3, stride=1, padding=1))
 
-        layers.append(nn.Conv2d(channels, 3, 3, 1, 1))
-        self.head = nn.Sequential(*layers[:-1])
+        for _ in range(num_blocks):
+            layers.append(conv_layer(num_channels, num_channels, kernel_size=3, stride=1, padding=1))
+
+        # Reconstruction to RGB image layer
+        layers.append(nn.Conv2d(num_channels, 3, 3, 1, 1))
+
+        self.head = nn.Sequential(*layers[:-1])  # split head and conv_out to solve an error of pytorch_model_summary
         self.conv_out = layers[-1]
 
     def forward(self, lr):
-        # (B,3,32,32) -> (B,3,128,128)
+
         base = F.interpolate(lr, scale_factor=4, mode="bicubic", align_corners=False)
 
-        # predict residual correction on HR grid
-        res = self.conv_out(self.head(base))    # (B,3,128,128)
-        out = base + res                        # (B,3,128,128)
-
-        if self.clamp_output:
-            out = out.clamp(0.0, 1.0)
-        return out
-
-
-class ResidualBlock(nn.Module):
-    def __init__(self, channels=64, residual_scale=0.1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.act   = nn.LeakyReLU(0.2, inplace=True)
-        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.residual_scale = residual_scale
-
-    def forward(self, x):
-        # x: (B, C, H, W)
-        res = self.conv2(self.act(self.conv1(x)))  # (B, C, H, W)
-        return x + self.residual_scale * res       # (B, C, H, W)
-
-class UpsampleBlockSimple(nn.Module):
-    def __init__(self, channels=64, mode="nearest"):
-        super().__init__()
-        self.mode = mode
-        self.conv = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-        self.act  = nn.LeakyReLU(0.2, inplace=True)
-
-    def forward(self, x):
-        # Step 1: upsample spatially (channels stay the same)
-        # (B, C, H, W) -> (B, C, 2H, 2W)
-        x = F.interpolate(x, scale_factor=2, mode=self.mode)
-
-        # Step 2: conv refinement
-        # (B, C, 2H, 2W) -> (B, C, 2H, 2W)
-        return self.act(self.conv(x))
-
-class SRNet4x(nn.Module):
-    def __init__(self, num_blocks=12, channels=64, residual_scale=0.1, clamp_output=False):
-        super().__init__()
-        self.clamp_output = clamp_output
-
-        # 1) Feature extraction: (B, 3, 32, 32) -> (B, C, 32, 32)
-        self.conv_in = nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1)
-        self.act     = nn.LeakyReLU(0.2, inplace=True)
-
-        # 2) Deep feature processing at the SAME resolution:
-        #    (B, C, 32, 32) -> (B, C, 32, 32)
-        self.blocks = nn.Sequential(*[
-            ResidualBlock(channels, residual_scale=residual_scale)
-            for _ in range(num_blocks)
-        ])
-        self.conv_mid = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
-
-        # 3) Upsampling from 32 -> 64 -> 128:
-        #    (B, C, 32, 32) -> (B, C, 64, 64) -> (B, C, 128, 128)
-        self.up1 = UpsampleBlockSimple(channels, mode="nearest")
-        self.up2 = UpsampleBlockSimple(channels, mode="nearest")
-
-        # 4) Output RGB prediction: (B, C, 128, 128) -> (B, 3, 128, 128)
-        self.conv_out = nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
-
-    def forward(self, lr):
-        # lr: (B, 3, 32, 32)
-
-        # Feature extraction
-        x = self.act(self.conv_in(lr))    # (B, C, 32, 32)
-
-        # Residual trunk (keeps same shape)
-        skip = x                          # (B, C, 32, 32)
-        x = self.blocks(x)                # (B, C, 32, 32)
-        x = self.conv_mid(x)              # (B, C, 32, 32)
-        x = x + skip                      # (B, C, 32, 32)
-
-        # Upsampling stages
-        x = self.up1(x)                   # (B, C, 64, 64)
-        x = self.up2(x)                   # (B, C, 128, 128)
-
-        # Predict SR RGB image
-        out = self.conv_out(x)            # (B, 3, 128, 128)
-
-        # Optional clamp for safety at inference
-        if self.clamp_output:
-            out = out.clamp(0.0, 1.0)
+        # predict residual correction on HR img
+        res = self.conv_out(self.head(base))
+        out = base + res
 
         return out
 
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class SrNet(nn.Module):
+    def __init__(
+        self,
+        blocks: int = 12,
+        channels: int = 64,
+    ):
+        super().__init__()
+        self.blocks = blocks
+        self.channels = channels
+        self.residual_scale = 0.1
+
+        # 1. Feature extraction (b, 3, 32, 32) -> (b, channels, 32, 32)
+        self.feature_extraction = nn.Conv2d(3, channels, kernel_size=3, stride=1, padding=1)
+        self.activation = nn.LeakyReLU(0.2, inplace=True)
+
+        # 2. Residual Blocks -> keep same dimension ( b, channels, 32, 32 )
+        self.residual_blocks = nn.ModuleList([self._residual_block() for _ in range(blocks)])
+
+        # 3. Upsample Blocks -> (b, channels, 32, 32) -> (b, channels, 64, 64) -> (b, channels, 128, 128)
+        self.upsample1 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+        self.upsample2 = nn.Conv2d(channels, channels, kernel_size=3, stride=1, padding=1)
+
+        # 4. SR Img reconstruction
+        self.sr_img_reconstruction = nn.Conv2d(channels, 3, kernel_size=3, stride=1, padding=1)
+
+    def _residual_block(self):
+        return nn.Sequential(
+            nn.Conv2d(self.channels, self.channels, kernel_size=3, stride=1, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(self.channels, self.channels, kernel_size=3, stride=1, padding=1)
+        )
+
+    def forward(self, lr_img):
+        # 1. Feature Extraction
+        x = self.feature_extraction(lr_img)
+        x = self.activation(x)
+
+        # 2. Residual Blocks
+        for block in self.residual_blocks:
+            x = x + self.residual_scale * block(x)
+
+        # 3. Upsample blocks
+        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = self.upsample1(x)
+        x = self.activation(x)
+
+        x = F.interpolate(x, scale_factor=2, mode="nearest")
+        x = self.upsample2(x)
+        x = self.activation(x)
+
+        # 4. Sr Img Reconstruction
+        sr_img = self.sr_img_reconstruction(x)
+        return sr_img
 
 def print(*args, **kwargs):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -375,17 +358,15 @@ def main_run(config):
 
     # ---- build model ----
     if config["model_type"] == "plain":
-        model = SRNet4x(
-            num_blocks=config["num_blocks"],
-            channels=config["channels"],
-            clamp_output=False
+        model = SrNet(
+            blocks=config["num_blocks"],
+            channels=config["channels"]
         ).cuda()
     elif config["model_type"] == "refiner":
         ValueError("add model type")
         model = BicubicRefiner(
-            channels=config["channels"],
-            blocks=config["num_blocks"],
-            clamp_output=False
+            num_channels=config["channels"],
+            num_blocks=config["num_blocks"]
         ).cuda()
 
     else:
