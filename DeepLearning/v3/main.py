@@ -74,6 +74,36 @@ class SupersamplingDataset(Dataset):
         return img_id, small_tensor
 
 
+class BicubicRefiner(nn.Module):
+    def __init__(self, channels=64, blocks=5, clamp_output=False):
+        super().__init__()
+        self.clamp_output = clamp_output
+
+        layers = []
+        layers.append(nn.Conv2d(3, channels, 3, 1, 1))
+        layers.append(nn.ReLU(inplace=True))
+
+        for _ in range(blocks - 2):
+            layers.append(nn.Conv2d(channels, channels, 3, 1, 1))
+            layers.append(nn.ReLU(inplace=True))
+
+        layers.append(nn.Conv2d(channels, 3, 3, 1, 1))
+        self.head = nn.Sequential(*layers[:-1])
+        self.conv_out = layers[-1]
+
+    def forward(self, lr):
+        # (B,3,32,32) -> (B,3,128,128)
+        base = F.interpolate(lr, scale_factor=4, mode="bicubic", align_corners=False)
+
+        # predict residual correction on HR grid
+        res = self.conv_out(self.head(base))    # (B,3,128,128)
+        out = base + res                        # (B,3,128,128)
+
+        if self.clamp_output:
+            out = out.clamp(0.0, 1.0)
+        return out
+
+
 class ResidualBlock(nn.Module):
     def __init__(self, channels=64, residual_scale=0.1):
         super().__init__()
@@ -86,7 +116,6 @@ class ResidualBlock(nn.Module):
         # x: (B, C, H, W)
         res = self.conv2(self.act(self.conv1(x)))  # (B, C, H, W)
         return x + self.residual_scale * res       # (B, C, H, W)
-
 
 class UpsampleBlockSimple(nn.Module):
     def __init__(self, channels=64, mode="nearest"):
@@ -103,7 +132,6 @@ class UpsampleBlockSimple(nn.Module):
         # Step 2: conv refinement
         # (B, C, 2H, 2W) -> (B, C, 2H, 2W)
         return self.act(self.conv(x))
-
 
 class SRNet4x(nn.Module):
     def __init__(self, num_blocks=12, channels=64, residual_scale=0.1, clamp_output=False):
@@ -352,11 +380,13 @@ def main_run(config):
             channels=config["channels"],
             clamp_output=False
         ).cuda()
-    elif config["model_type"] == "Linear Layers":
-        ValueError("add model type") # TODO: add LinearMdel
-        # model = LinearModel(
-        #
-        # )
+    elif config["model_type"] == "refiner":
+        ValueError("add model type")
+        model = BicubicRefiner(
+            channels=config["channels"],
+            blocks=config["num_blocks"],
+            clamp_output=False
+        ).cuda()
 
     else:
         raise ValueError("Unknown model_type")
@@ -393,9 +423,9 @@ def main_run(config):
     run.log_artifact(artifact)
 
     # Make submission (logs best_mse into filename)
-    print("CREATING SUBMISSION CSV")
-    out_path = f"submissions/submission-{config['run_name']}-{best_mse:8.6f}.csv"
-    create_submission_csv(model=model, test_loader=test_dataloader, out_csv_path=out_path, device="cuda")
+    # print("CREATING SUBMISSION CSV")
+    # out_path = f"submissions/submission-{config['run_name']}-{best_mse:8.6f}.csv"
+    # create_submission_csv(model=model, test_loader=test_dataloader, out_csv_path=out_path, device="cuda")
 
     run.finish()
     return best_mse
@@ -421,18 +451,57 @@ if __name__ == '__main__':
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, persistent_workers=True)
 
 
+
     sweep = [
         # --- 75-epoch cosine ---
-        {"run_name": "plain_b24_c712_lr3e-5_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 3e-5, "num_epochs": 75},
-        {"run_name": "plain_b24_c712_lr5e-5_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 5e-5, "num_epochs": 75},
-         {"run_name": "plain_b24_c712_lr1e-4_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 1e-4, "num_epochs": 75},
+        # {"run_name": "plain_b24_c712_lr3e-5_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 3e-5, "num_epochs": 75},
+        # {"run_name": "plain_b24_c712_lr5e-5_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 5e-5, "num_epochs": 75},
+        #  {"run_name": "plain_b24_c712_lr1e-4_e75", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 1e-4, "num_epochs": 75},
+        #
+        # # --- 100-epoch cosine ---
+        # {"run_name": "plain_b24_c712_lr3e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 3e-5, "num_epochs": 100},
+        # {"run_name": "plain_b24_c712_lr5e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 5e-5, "num_epochs": 100},
+        # {"run_name": "plain_b24_c712_lr7e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 7.5e-5, "num_epochs": 100},
 
-        # --- 100-epoch cosine ---
-        {"run_name": "plain_b24_c712_lr3e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 3e-5, "num_epochs": 100},
-        {"run_name": "plain_b24_c712_lr5e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 5e-5, "num_epochs": 100},
-        {"run_name": "plain_b24_c712_lr7e-5_e100", "model_type": "plain", "num_blocks": 24, "channels": 712, "lr": 7.5e-5, "num_epochs": 100},
+        # num_blocks = 8
+        # {"run_name": "refiner_b8_c64", "model_type": "refiner", "num_blocks": 8, "channels":  64},
+        # {"run_name": "refiner_b8_c128", "model_type": "refiner", "num_blocks": 8, "channels": 128},
+        # {"run_name": "refiner_b8_c192", "model_type": "refiner", "num_blocks": 8, "channels": 192},
+        # {"run_name": "refiner_b8_c256", "model_type": "refiner", "num_blocks": 8, "channels": 256},
+        # {"run_name": "refiner_b8_c320", "model_type": "refiner", "num_blocks": 8, "channels": 320},
+        # {"run_name": "refiner_b8_c384", "model_type": "refiner", "num_blocks": 8, "channels": 384},
+        # {"run_name": "refiner_b8_c448", "model_type": "refiner", "num_blocks": 8, "channels": 448},
+        # {"run_name": "refiner_b8_c512", "model_type": "refiner", "num_blocks": 8, "channels": 512},
+        # {"run_name": "refiner_b8_c576", "model_type": "refiner", "num_blocks": 8, "channels": 576},
+        # {"run_name": "refiner_b8_c640", "model_type": "refiner", "num_blocks": 8, "channels": 640},
+        # {"run_name": "refiner_b8_c712", "model_type": "refiner", "num_blocks": 8, "channels": 712},
+
+        {"run_name": "refiner_b16_c64", "model_type": "refiner", "num_blocks": 16, "channels": 64},
+        {"run_name": "refiner_b16_c128", "model_type": "refiner", "num_blocks": 16, "channels": 128},
+        {"run_name": "refiner_b16_c192", "model_type": "refiner", "num_blocks": 16, "channels": 192},
+        {"run_name": "refiner_b16_c256", "model_type": "refiner", "num_blocks": 16, "channels": 256},
+        # {"run_name": "refiner_b16_c320", "model_type": "refiner", "num_blocks": 16, "channels": 320},
+        # {"run_name": "refiner_b16_c384", "model_type": "refiner", "num_blocks": 16, "channels": 384},
+        # {"run_name": "refiner_b16_c448", "model_type": "refiner", "num_blocks": 16, "channels": 448},
+        # {"run_name": "refiner_b16_c512", "model_type": "refiner", "num_blocks": 16, "channels": 512},
+        # {"run_name": "refiner_b16_c576", "model_type": "refiner", "num_blocks": 16, "channels": 576},
+        # {"run_name": "refiner_b16_c640", "model_type": "refiner", "num_blocks": 16, "channels": 640},
+        # {"run_name": "refiner_b16_c712", "model_type": "refiner", "num_blocks": 16, "channels": 712},
+
+        # num_blocks = 24
+        {"run_name": "refiner_b24_c64", "model_type": "refiner", "num_blocks": 24, "channels": 64},
+        {"run_name": "refiner_b24_c128", "model_type": "refiner", "num_blocks": 24, "channels": 128},
+        {"run_name": "refiner_b24_c192", "model_type": "refiner", "num_blocks": 24, "channels": 192},
+        {"run_name": "refiner_b24_c256", "model_type": "refiner", "num_blocks": 24, "channels": 256},
+        # {"run_name": "refiner_b24_c320", "model_type": "refiner", "num_blocks": 24, "channels": 320},
+        # {"run_name": "refiner_b24_c384", "model_type": "refiner", "num_blocks": 24, "channels": 384},
+        # {"run_name": "refiner_b24_c448", "model_type": "refiner", "num_blocks": 24, "channels": 448},
+        # {"run_name": "refiner_b24_c512", "model_type": "refiner", "num_blocks": 24, "channels": 512},
+        # {"run_name": "refiner_b24_c576", "model_type": "refiner", "num_blocks": 24, "channels": 576},
+        # {"run_name": "refiner_b24_c640", "model_type": "refiner", "num_blocks": 24, "channels": 640},
+        # {"run_name": "refiner_b24_c712", "model_type": "refiner", "num_blocks": 24, "channels": 712},
+
     ]
-
     base = {
         "batch_size": batch_size,
         "num_workers": num_workers,
