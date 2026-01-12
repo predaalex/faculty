@@ -340,27 +340,27 @@ num_warmup_steps = int(0.1 * num_train_steps)
 scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [5, 10, 15], gamma=0.5)
 # scheduler = None
 
-# # TODO: uncomment to train
-# model_ft, best_epoch = train(model, optimizer, scheduler, num_epochs=epochs)
-#
-# torch.save(model_ft.state_dict(), 'saved_models/model_resnet101.pt')
-#
-# # Unpacking the output from the evaluate function for the validation dataset
-# vl_loss, vl_acc, val_f1_1, val_f1_2, val_f1_3, val_f1_4, val_f1_5 = evaluate(model_ft, vl_loader)
-# print('Validation Metrics: Loss: %.4f, ACC: %.2f, F1: %.2f, F2: %.2f, F3: %.2f, F4: %.2f, F5: %.2f' % (
-#     np.round(vl_loss, 4), vl_acc * 100, val_f1_1 * 100, val_f1_2 * 100, val_f1_3 * 100, val_f1_4 * 100, val_f1_5 * 100))
-#
-#
-#
-# vl_loss, vl_acc, ts_f1_1, ts_f1_2, ts_f1_3, ts_f1_4, ts_f1_5 = evaluate(model_ft, vl_loader)
-# print('Test Metrics: Loss: %.4f, ACC: %.2f, F1: %.2f, F2: %.2f, F3: %.2f, F4: %.2f, F5: %.2f' % (
-#     np.round(vl_loss, 4), vl_acc * 100, ts_f1_1 * 100, ts_f1_2 * 100, ts_f1_3 * 100, ts_f1_4 * 100, ts_f1_5 * 100))
-# # Task A: Misogyny detection F1 score
-# task_a_f1 = ts_f1_1
-#
-# # Task B: Average F1 score for other classes
-# task_b_f1 = (ts_f1_2 + ts_f1_3 + ts_f1_4 + ts_f1_5) / 4  # Simple average
-#
-# # Print the F1 scores per task
-# print('F1 Score for Task A (Misogyny Detection): %.3f' % (task_a_f1 * 100))
-# print('F1 Score for Task B (Other Classes): %.3f' % (task_b_f1 * 100))
+# TODO: uncomment to train
+model_ft, best_epoch = train(model, optimizer, scheduler, num_epochs=epochs)
+
+torch.save(model_ft.state_dict(), f'saved_models/model_{vmodel}.pt')
+
+# Unpacking the output from the evaluate function for the validation dataset
+vl_loss, vl_acc, val_f1_1, val_f1_2, val_f1_3, val_f1_4, val_f1_5 = evaluate(model_ft, vl_loader)
+print('Validation Metrics: Loss: %.4f, ACC: %.2f, F1: %.2f, F2: %.2f, F3: %.2f, F4: %.2f, F5: %.2f' % (
+    np.round(vl_loss, 4), vl_acc * 100, val_f1_1 * 100, val_f1_2 * 100, val_f1_3 * 100, val_f1_4 * 100, val_f1_5 * 100))
+
+
+
+vl_loss, vl_acc, ts_f1_1, ts_f1_2, ts_f1_3, ts_f1_4, ts_f1_5 = evaluate(model_ft, vl_loader)
+print('Test Metrics: Loss: %.4f, ACC: %.2f, F1: %.2f, F2: %.2f, F3: %.2f, F4: %.2f, F5: %.2f' % (
+    np.round(vl_loss, 4), vl_acc * 100, ts_f1_1 * 100, ts_f1_2 * 100, ts_f1_3 * 100, ts_f1_4 * 100, ts_f1_5 * 100))
+# Task A: Misogyny detection F1 score
+task_a_f1 = ts_f1_1
+
+# Task B: Average F1 score for other classes
+task_b_f1 = (ts_f1_2 + ts_f1_3 + ts_f1_4 + ts_f1_5) / 4  # Simple average
+
+# Print the F1 scores per task
+print('F1 Score for Task A (Misogyny Detection): %.3f' % (task_a_f1 * 100))
+print('F1 Score for Task B (Other Classes): %.3f' % (task_b_f1 * 100))
