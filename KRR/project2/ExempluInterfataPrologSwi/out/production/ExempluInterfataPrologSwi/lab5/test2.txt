@@ -1,0 +1,3 @@
+Patient name? (string)
+Patient age? (number)
+Is the patient a smoker? (boolean)

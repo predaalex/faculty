@@ -1,0 +1,11 @@
+Rules:
+-If cpu is slow or ram is low then action is upgrade.
+-If cpu is normal and ram is ok then action is keep.
+-If cpu is fast or ram is high then action is optimize.
+
+Questions:
+-[cpu] What is the CPU performance rating? (number)
+-[ram] What is the RAM adequacy rating? (number)
+
+The goal:
+-action

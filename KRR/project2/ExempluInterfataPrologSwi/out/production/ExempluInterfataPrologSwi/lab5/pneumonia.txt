@@ -1,0 +1,14 @@
+Rules:
+-If has(patient_cough) and has(infection) then has(pneumonia).
+-If gt(patient_temperature, 38) then has(fever).
+-If has(patient_muscle_pain) and has(fever) then has(flu).
+-If ge(days_sick, 2) and has(fever) then has(infection).
+
+Questions:
+-[patient_temperature] What is patient temperature? (number)
+-[days_sick] For how many days has the patient been sick? (number)
+-[patient_muscle_pain] Has patient muscle pain? (boolean)
+-[patient_cough] Has patient cough? (boolean)
+
+The goal:
+-has(pneumonia)

@@ -1,0 +1,14 @@
+Rules:
+-If gt(cpu_temperature, 85) then has(overheating).
+-If has(overheating) and has(fan_failure) then has(thermal_shutdown).
+-If ge(hours_used, 8) and has(thermal_shutdown) then has(system_instability).
+-If has(system_instability) and has(data_corruption) then has(system_failure).
+
+Questions:
+-[cpu_temperature] What is the CPU temperature (in Celsius)? (number)
+-[hours_used] For how many hours has the system been running continuously? (number)
+-[fan_failure] Is the cooling fan failing? (boolean)
+-[data_corruption] Is there data corruption detected? (boolean)
+
+The goal:
+-has(system_failure).

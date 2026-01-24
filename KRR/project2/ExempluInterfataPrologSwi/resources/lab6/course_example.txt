@@ -1,0 +1,11 @@
+Rules:
+-If service is poor or food is rancid then tip is cheap.
+-If service is good then tip is normal.
+-If service is excellent or food is delicious then tip is generous.
+
+Questions:
+-[service] What is the service rating? (number)
+-[food] What is the food rating? (number)
+
+The goal:
+-tip
