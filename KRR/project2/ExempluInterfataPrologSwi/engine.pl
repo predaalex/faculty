@@ -43,7 +43,6 @@ handle_session(In, Out, ScenarioPath) :-
     % -------- FIRST APPROACH: your algorithms --------
     ( forward_chaining(HornKB, Facts, GoalTerm) -> FC=entailed ; FC=not_entailed ),
     ( backward_chaining_v1(HornKB, Facts, GoalTerm) -> BC1=entailed ; BC1=not_entailed ),
-    ( backward_chaining_v2(HornKB, Facts, GoalTerm) -> BC2=entailed ; BC2=not_entailed ),
 
     % -------- SECOND APPROACH: Prolog built-in BC, but dynamic --------
     assert_kb_as_prolog(ParsedRules),
@@ -55,7 +54,6 @@ handle_session(In, Out, ScenarioPath) :-
     format(Out, "Goal: ~w~n", [GoalTerm]),
     format(Out, "Forward chaining: ~w~n", [FC]),
     format(Out, "Backward chaining v1: ~w~n", [BC1]),
-    format(Out, "Backward chaining v2: ~w~n", [BC2]),
     format(Out, "Prolog built-in BC: ~w~n", [PBC]),
     format(Out, "~w~n", [FC]),
     flush_output(Out).
@@ -145,8 +143,6 @@ parse_rule_line(Line, rule(Premises, Head)) :-
     ),
     split_on_then(Body, Left, Right),
     split_on_and(Left, PremStrs),
-    format(user_error, "DEBUG Left=~w~n", [Left]),
-    format(user_error, "DEBUG PremStrs=~w~n", [PremStrs]),
     maplist(parse_condition_string, PremStrs, Premises),
     parse_condition_string(Right, Head).
 
@@ -338,40 +334,6 @@ bc1_all(_KB, _Facts, [], _Visited).
 bc1_all(KB, Facts, [P|Ps], Visited) :-
     bc1_prove(KB, Facts, P, Visited),
     bc1_all(KB, Facts, Ps, Visited).
-
-% ============================================================
-% Backward chaining v2 (memoized proven/failed)
-% ============================================================
-
-backward_chaining_v2(HornKB, Facts, Goal) :-
-    bc2_prove(HornKB, Facts, Goal, [], [], _ProvenOut, _FailedOut).
-
-bc2_prove(_KB, Facts, Goal, Proven, Failed, Proven, Failed) :-
-    member(Goal, Facts), !.
-bc2_prove(_KB, _Facts, Goal, Proven, Failed, Proven, Failed) :-
-    member(Goal, Proven), !.
-bc2_prove(_KB, _Facts, Goal, Proven, Failed, Proven, Failed) :-
-    member(Goal, Failed), !, fail.
-bc2_prove(KB, Facts, Goal, ProvenIn, FailedIn, ProvenOut, FailedOut) :-
-    findall(Premises,
-        ( member(Clause, KB),
-          clause_head(Clause, Goal),
-          clause_premises(Clause, Premises)
-        ),
-        Options),
-    bc2_try(KB, Facts, Goal, Options, ProvenIn, FailedIn, ProvenOut, FailedOut).
-
-bc2_try(_KB, _Facts, Goal, [], Proven, Failed, Proven, [Goal|Failed]) :- !, fail.
-bc2_try(KB, Facts, Goal, [Premises|Rest], ProvenIn, FailedIn, ProvenOut, FailedOut) :-
-    ( bc2_all(KB, Facts, Premises, ProvenIn, FailedIn, ProvenMid, FailedMid) ->
-        ProvenOut = [Goal|ProvenMid], FailedOut = FailedMid
-    ; bc2_try(KB, Facts, Goal, Rest, ProvenIn, FailedIn, ProvenOut, FailedOut)
-    ).
-
-bc2_all(_KB, _Facts, [], Proven, Failed, Proven, Failed).
-bc2_all(KB, Facts, [P|Ps], ProvenIn, FailedIn, ProvenOut, FailedOut) :-
-    bc2_prove(KB, Facts, P, ProvenIn, FailedIn, ProvenMid, FailedMid),
-    bc2_all(KB, Facts, Ps, ProvenMid, FailedMid, ProvenOut, FailedOut).
 
 % ============================================================
 % SECOND APPROACH: Dynamic Prolog backward chaining (no hardcoding)
