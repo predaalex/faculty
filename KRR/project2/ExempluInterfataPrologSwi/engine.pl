@@ -42,7 +42,7 @@ handle_session(In, Out, ScenarioPath) :-
 
     % -------- FIRST APPROACH: your algorithms --------
     ( forward_chaining(HornKB, Facts, GoalTerm) -> FC=entailed ; FC=not_entailed ),
-    ( backward_chaining_v1(HornKB, Facts, GoalTerm) -> BC1=entailed ; BC1=not_entailed ),
+    ( backward_chaining(HornKB, Facts, GoalTerm) -> BC=entailed ; BC=not_entailed ),
 
     % -------- SECOND APPROACH: Prolog built-in BC, but dynamic --------
     assert_kb_as_prolog(ParsedRules),
@@ -53,7 +53,7 @@ handle_session(In, Out, ScenarioPath) :-
     format(Out, "Facts: ~w~n", [Facts]),
     format(Out, "Goal: ~w~n", [GoalTerm]),
     format(Out, "Forward chaining: ~w~n", [FC]),
-    format(Out, "Backward chaining v1: ~w~n", [BC1]),
+    format(Out, "Backward chaining v1: ~w~n", [BC]),
     format(Out, "Prolog built-in BC: ~w~n", [PBC]),
     format(Out, "~w~n", [FC]),
     flush_output(Out).
@@ -315,25 +315,25 @@ subset_list([], _).
 subset_list([X|Xs], Set) :- member(X, Set), subset_list(Xs, Set).
 
 % ============================================================
-% Backward chaining v1 (DFS)
+% Backward chaining (DFS)
 % ============================================================
 
-backward_chaining_v1(HornKB, Facts, Goal) :-
-    bc1_prove(HornKB, Facts, Goal, []).
+backward_chaining(HornKB, Facts, Goal) :-
+    bc_prove(HornKB, Facts, Goal, []).
 
-bc1_prove(_KB, Facts, Goal, _Visited) :-
+bc_prove(_KB, Facts, Goal, _Visited) :-
     member(Goal, Facts), !.
-bc1_prove(KB, Facts, Goal, Visited) :-
+bc_prove(KB, Facts, Goal, Visited) :-
     \+ member(Goal, Visited),
     member(Clause, KB),
     clause_head(Clause, Goal),
     clause_premises(Clause, Premises),
-    bc1_all(KB, Facts, Premises, [Goal|Visited]).
+    bc_all(KB, Facts, Premises, [Goal|Visited]).
 
-bc1_all(_KB, _Facts, [], _Visited).
-bc1_all(KB, Facts, [P|Ps], Visited) :-
-    bc1_prove(KB, Facts, P, Visited),
-    bc1_all(KB, Facts, Ps, Visited).
+bc_all(_KB, _Facts, [], _Visited).
+bc_all(KB, Facts, [P|Ps], Visited) :-
+    bc_prove(KB, Facts, P, Visited),
+    bc_all(KB, Facts, Ps, Visited).
 
 % ============================================================
 % SECOND APPROACH: Dynamic Prolog backward chaining (no hardcoding)
