@@ -8,7 +8,7 @@ import java.util.List;
 public class DiagnosisAlgorithm {
 
     private final String pathExecSwipl = "C:\\Program Files\\swipl\\bin\\swipl.exe";
-    private final String pathAlgorithm = "C:\\Users\\allex\\Desktop\\git_repos\\faculty\\KRR\\project2\\ExempluInterfataPrologSwi\\engine2.pl";
+    private final String pathAlgorithm = "C:\\Users\\allex\\Desktop\\git_repos\\faculty\\KRR\\project2\\ExempluInterfataPrologSwi\\engine2_no_comments.pl";
 
     public static final String PORT = "5007";
 

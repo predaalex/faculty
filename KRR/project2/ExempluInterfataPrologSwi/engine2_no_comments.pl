@@ -5,10 +5,6 @@
 
 :- initialization(main, main).
 
-/* ============================================================
-   ENTRY / SOCKET
-   ============================================================ */
-
 main(Argv) :-
     ( Argv = [PortAtom, ScenarioPathAtom | _] ->
         atom_number(PortAtom, Port),
@@ -26,55 +22,40 @@ run_client(Port, ScenarioPath) :-
     close(In),
     close(Out).
 
-/* ============================================================
-   MAIN SESSION
-   ============================================================ */
-
 handle_session(In, Out, ScenarioPath) :-
-    format(user_error, "[DBG] handle_session start. ScenarioPath=~w~n", [ScenarioPath]),
-
-    % 1) Read scenario -> rule lines + goal output variable
     read_scenario(ScenarioPath, RuleLines, GoalVar),
-    length(RuleLines, NR),
-    format(user_error, "[DBG] GoalVar=~q~n", [GoalVar]),
-    format(user_error, "[DBG] Read ~d rule lines.~n", [NR]),
+    format(user_error, "[DEBUG] RuleLines = ~w~n", [RuleLines]),
+    format(user_error, "[DEBUG] GoalVar = ~w~n", [GoalVar]),
 
-    % 2) Parse rules (grammar)
     maplist(parse_fuzzy_rule_line, RuleLines, Rules0),
+    format(user_error, "[DEBUG] Parsed Rules0 = ~w~n", [Rules0]),
+
     include(rule_matches_goal(GoalVar), Rules0, Rules),
-    length(Rules, NRules),
-    format(user_error, "[DBG] Parsed ~d rules matching goal: ~q~n", [NRules, Rules]),
+    format(user_error, "[DEBUG] Filtered Rules = ~w~n", [Rules]),
 
-    % 3) Read Java answers until "done"
-    format(user_error, "[DBG] Waiting for Java answers... (expects 'done')~n", []),
     read_answers(In, Values),
-    format(user_error, "[DBG] Values=~q~n", [Values]),
+    format(user_error, "[DEBUG] Input Values = ~w~n", [Values]),
 
-    % 4) Fuzzy inference on discrete domain 0..25
     aggregate_output_curve(Rules, Values, Curve),
+    format(user_error, "[DEBUG] Aggregated Curve = ~w~n", [Curve]),
+
     defuzzify_centroid(Curve, CrispOut),
+    format(user_error, "[DEBUG] CrispOut = ~w~n", [CrispOut]),
 
-    format(user_error, "[DBG] Defuzzified ~w = ~6f~n", [GoalVar, CrispOut]),
-
-    % 5) Send result back to Java (dynamic key)
     format(Out, "result:~w=~2f~n", [GoalVar, CrispOut]),
     flush_output(Out),
-    format(user_error, "[DBG] Sent result and flushed.~n", []).
+    format(user_error, "[DEBUG] Output flushed~n", []).
+
+
 
 rule_matches_goal(GoalVar, rule(_Conn, _Ante, GoalVar/_Pred)).
-
-/* ============================================================
-   SCENARIO FILE READING (Rules + Goal)
-   ============================================================ */
 
 read_scenario(Path, RuleLines, GoalVar) :-
     read_file_to_string(Path, S, []),
     split_string(S, "\n", "\r", Lines0),
     maplist(string_trim, Lines0, Lines),
-
     extract_section_lines("Rules:", Lines, RuleLines0),
     include(is_rule_line, RuleLines0, RuleLines),
-
     extract_goal_var(Lines, GoalVar).
 
 is_rule_line(Line) :-
@@ -121,17 +102,6 @@ strip_leading_dash(S0, S) :-
     ; string_trim(S0, S)
     ).
 
-/* ============================================================
-   Read answers from Java (YOUR VERSION)
-   ============================================================ */
-
-% ============================================================
-% Read answers from Java (numeric only):
-%   ans:<id>=<value>
-% Stops when line is "done"
-% Output: Values = [value(Id, Num), ...]
-% ============================================================
-
 read_answers(In, Values) :-
     read_line_to_string(In, Line0),
     ( Line0 == end_of_file ->
@@ -160,20 +130,12 @@ parse_answer_line_numeric(Line, Values) :-
             atom_string(Id, IdStr),
             ( catch(number_string(Num, ValStr), _, fail) ->
                 Values = [value(Id, Num)]
-            ;   Values = []   % non-numeric -> ignore
+            ;   Values = []
             )
         ; throw(bad_answer(Line))
         )
     ; throw(bad_answer(Line))
     ).
-
-
-/* ============================================================
-   DCG GRAMMAR FOR FUZZY RULES
-   Accepts:
-   -If service is poor or food is rancid then tip is cheap.
-   -If cpu is slow and ram is ok then action is keep.
-   ============================================================ */
 
 parse_fuzzy_rule_line(LineStr, Rule) :-
     string_codes(LineStr, Codes),
@@ -224,10 +186,6 @@ word_codes_rest([C|Cs]) -->
     word_codes_rest(Cs).
 word_codes_rest([]) --> [].
 
-/* ============================================================
-   MEMBERSHIP FUNCTIONS (degree curves)
-   ============================================================ */
-
 clamp01(X, Y) :- Y is max(0.0, min(1.0, X)).
 
 left_shoulder(A, B, X, Mu) :-
@@ -249,8 +207,6 @@ triangle(A, B, C, X, Mu) :-
     ; Mu0 is (C - X) / (C - B), clamp01(Mu0, Mu)
     ).
 
-% ---------- Restaurant example ----------
-% INPUT (0..10)
 mu(service, poor, X, Mu)      :- left_shoulder(0.0, 4.0, X, Mu).
 mu(service, good, X, Mu)      :- triangle(2.0, 5.0, 8.0, X, Mu).
 mu(service, excellent, X, Mu) :- right_shoulder(6.0, 10.0, X, Mu).
@@ -258,13 +214,10 @@ mu(service, excellent, X, Mu) :- right_shoulder(6.0, 10.0, X, Mu).
 mu(food, rancid, X, Mu)       :- left_shoulder(0.0, 4.0, X, Mu).
 mu(food, delicious, X, Mu)    :- right_shoulder(6.0, 10.0, X, Mu).
 
-% OUTPUT (0..25)
 mu(tip, cheap, Y, Mu)         :- left_shoulder(0.0, 10.0, Y, Mu).
 mu(tip, normal, Y, Mu)        :- triangle(5.0, 12.5, 20.0, Y, Mu).
 mu(tip, generous, Y, Mu)      :- right_shoulder(15.0, 25.0, Y, Mu).
 
-% ---------- Computer example ----------
-% INPUT (0..10)
 mu(cpu, slow, X, Mu)          :- left_shoulder(0.0, 4.0, X, Mu).
 mu(cpu, normal, X, Mu)        :- triangle(2.0, 5.0, 8.0, X, Mu).
 mu(cpu, fast, X, Mu)          :- right_shoulder(6.0, 10.0, X, Mu).
@@ -273,14 +226,9 @@ mu(ram, low, X, Mu)           :- left_shoulder(0.0, 4.0, X, Mu).
 mu(ram, ok, X, Mu)            :- triangle(2.0, 5.0, 8.0, X, Mu).
 mu(ram, high, X, Mu)          :- right_shoulder(6.0, 10.0, X, Mu).
 
-% OUTPUT (0..25)
 mu(action, keep, Y, Mu)       :- left_shoulder(0.0, 10.0, Y, Mu).
 mu(action, optimize, Y, Mu)   :- triangle(5.0, 12.5, 20.0, Y, Mu).
 mu(action, upgrade, Y, Mu)    :- right_shoulder(15.0, 25.0, Y, Mu).
-
-/* ============================================================
-   FUZZY INFERENCE (generalized output variable)
-   ============================================================ */
 
 get_value(Id, Values, V) :- member(value(Id, V), Values).
 
